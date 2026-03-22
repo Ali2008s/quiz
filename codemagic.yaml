@@ -5,6 +5,10 @@ workflows:
     environment:
       flutter: stable
     scripts:
+      - name: Install Shorebird CLI
+        script: |
+          pub global activate shorebird_cli
+          export PATH="$PATH":"$HOME/.pub-cache/bin"
       - name: Shorebird build APK
         script: |
           shorebird build android --release --artifact apk
