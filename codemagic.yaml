@@ -5,12 +5,13 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Install Shorebird CLI
-        script: |
-          pub global activate shorebird_cli
-          export PATH="$PATH":"$HOME/.pub-cache/bin"
       - name: Shorebird patch android
         script: |
+          # Install Shorebird
+          curl -proto '=https' -tlsv1.2 -sSf https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh | bash
+          export PATH="$PATH:$HOME/.shorebird/bin"
+          
+          # Run Patch
           shorebird patch android --no-codesign --force
     artifacts:
       - build/app/outputs/bundle/release/app-release.aab
@@ -23,12 +24,13 @@ workflows:
       flutter: stable
       xcode: latest
     scripts:
-      - name: Install Shorebird CLI
-        script: |
-          pub global activate shorebird_cli
-          export PATH="$PATH":"$HOME/.pub-cache/bin"
       - name: Shorebird patch ios
         script: |
+          # Install Shorebird
+          curl -proto '=https' -tlsv1.2 -sSf https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh | bash
+          export PATH="$PATH:$HOME/.shorebird/bin"
+          
+          # Run Patch
           shorebird patch ios --no-codesign --force
     artifacts:
       - build/ios/iphoneos/Runner.app
