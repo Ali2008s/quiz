@@ -4,6 +4,8 @@ workflows:
     max_build_duration: 60
     environment:
       flutter: stable
+      groups:
+        - shorebird
     scripts:
       - name: Shorebird patch android
         script: |
@@ -11,11 +13,8 @@ workflows:
           curl -proto '=https' -tlsv1.2 -sSf https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh | bash
           export PATH="$PATH:$HOME/.shorebird/bin"
           
-          # Check for token
-          if [ -z "$SHOREBIRD_TOKEN" ]; then
-            echo "Error: SHOREBIRD_TOKEN is missing. Please add it to Codemagic environment variables."
-            exit 1
-          fi
+          # Use Token from group or hardcoded (for immediate fix)
+          export SHOREBIRD_TOKEN=${SHOREBIRD_TOKEN:-"eyJyZWZyZXNoX3Rva2VuIjoiMS8vMDNWeXRvOXhMTGVWM0NnWUlBUkFBR0FNU053Ri1MOUlyOWVqVGdOUXJFVlJ3RFVpT3V1YkdYUGQzOFloM0xQSTZpU0JUZE1sblZfbnBacnAzbnJJZ0xwTlIxaG14WGtzVWpDTSIsImF1dGhfcHJvdmlkZXIiOiJnb29nbGUifQ=="}
 
           # Run Patch
           shorebird patch android --no-codesign --force
@@ -29,6 +28,8 @@ workflows:
     environment:
       flutter: stable
       xcode: latest
+      groups:
+        - shorebird
     scripts:
       - name: Shorebird patch ios
         script: |
@@ -36,11 +37,8 @@ workflows:
           curl -proto '=https' -tlsv1.2 -sSf https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh | bash
           export PATH="$PATH:$HOME/.shorebird/bin"
           
-          # Check for token
-          if [ -z "$SHOREBIRD_TOKEN" ]; then
-            echo "Error: SHOREBIRD_TOKEN is missing. Please add it to Codemagic environment variables."
-            exit 1
-          fi
+          # Use Token from group or hardcoded (for immediate fix)
+          export SHOREBIRD_TOKEN=${SHOREBIRD_TOKEN:-"eyJyZWZyZXNoX3Rva2VuIjoiMS8vMDNWeXRvOXhMTGVWM0NnWUlBUkFBR0FNU053Ri1MOUlyOWVqVGdOUXJFVlJ3RFVpT3V1YkdYUGQzOFloM0xQSTZpU0JUZE1sblZfbnBacnAzbnJJZ0xwTlIxaG14WGtzVWpDTSIsImF1dGhfcHJvdmlkZXIiOiJnb29nbGUifQ=="}
 
           # Run Patch
           shorebird patch ios --no-codesign --force --release-version latest
