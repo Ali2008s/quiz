@@ -41,6 +41,8 @@ workflows:
           export SHOREBIRD_TOKEN=${SHOREBIRD_TOKEN:-"eyJyZWZyZXNoX3Rva2VuIjoiMS8vMDNWeXRvOXhMTGVWM0NnWUlBUkFBR0FNU053Ri1MOUlyOWVqVGdOUXJFVlJ3RFVpT3V1YkdYUGQzOFloM0xQSTZpU0JUZE1sblZfbnBacnAzbnJJZ0xwTlIxaG14WGtzVWpDTSIsImF1dGhfcHJvdmlkZXIiOiJnb29nbGUifQ=="}
 
           # Run Patch
-          shorebird patch ios --no-codesign --force --release-version latest
+               shorebird patch ios --no-codesign --force
+
+
     artifacts:
       - build/ios/iphoneos/Runner.app
