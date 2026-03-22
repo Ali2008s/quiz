@@ -11,6 +11,12 @@ workflows:
           curl -proto '=https' -tlsv1.2 -sSf https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh | bash
           export PATH="$PATH:$HOME/.shorebird/bin"
           
+          # Check for token
+          if [ -z "$SHOREBIRD_TOKEN" ]; then
+            echo "Error: SHOREBIRD_TOKEN is missing. Please add it to Codemagic environment variables."
+            exit 1
+          fi
+
           # Run Patch
           shorebird patch android --no-codesign --force
     artifacts:
@@ -30,7 +36,13 @@ workflows:
           curl -proto '=https' -tlsv1.2 -sSf https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh | bash
           export PATH="$PATH:$HOME/.shorebird/bin"
           
+          # Check for token
+          if [ -z "$SHOREBIRD_TOKEN" ]; then
+            echo "Error: SHOREBIRD_TOKEN is missing. Please add it to Codemagic environment variables."
+            exit 1
+          fi
+
           # Run Patch
-          shorebird patch ios --no-codesign --force
+          shorebird patch ios --no-codesign --force --release-version latest
     artifacts:
       - build/ios/iphoneos/Runner.app
