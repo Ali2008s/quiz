@@ -1,7 +1,6 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../widgets/styled_widgets.dart';
+import '../data/services/auth_service.dart';
 
 class MheibesGameScreen extends StatefulWidget {
   const MheibesGameScreen({super.key});
@@ -11,65 +10,62 @@ class MheibesGameScreen extends StatefulWidget {
 }
 
 class _MheibesGameScreenState extends State<MheibesGameScreen> {
-  int _handWithRing = -1; // -1 means concealed
-  int _selectedHand = -1;
-  bool _revealed = false;
-  int _score1 = 0;
-  int _score2 = 0;
-  bool _isMicOn = true;
-  final Random _random = Random();
+  int _selectedPlayerIndex = -1; // -1 means none selected
+  bool _isMyTurn = true;
+  int _myScore = 12;
+  int _opponentScore = 10;
+  String _userName = 'أنت';
 
-  void _startGame() {
-    setState(() {
-      _handWithRing = _random.nextInt(6); // 6 hands per team
-      _selectedHand = -1;
-      _revealed = false;
-    });
+  Future<void> _loadUserName() async {
+    final name = await AuthService.getUserName();
+    if (name != null) {
+      setState(() {
+        _userName = name;
+      });
+    }
   }
 
-  void _onHandTap(int index) {
-    if (_revealed) return;
-    setState(() {
-      _selectedHand = index;
-      _revealed = true;
-      if (_selectedHand == _handWithRing) {
-        _score2++; // Current turn score
-      } else {
-        _score1++;
-      }
-    });
-  }
+  void _startGame() {}
 
   @override
   void initState() {
     super.initState();
+    _loadUserName();
     _startGame();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildScoreBoard(),
-            const SizedBox(height: 30),
-            Text(
-              _revealed ? (_selectedHand == _handWithRing ? 'لقيته! عاشت إيدك' : 'للأسف، مو بهاي الإيد') : 'وين المحيبس؟ اختر إيد واحدة',
-              style: GoogleFonts.lalezar(fontSize: 24, color: const Color(0xFFEF5350)),
-              textAlign: TextAlign.center,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF1A1A2E),
+              Color(0xFF16213E),
+              Color(0xFF0F3460),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildHeader(),
+                _buildTurnIndicator(),
+                const SizedBox(height: 20),
+                _buildTeamSection('فريق الخصم', true),
+                const SizedBox(height: 30),
+                _buildTeamSection('فريقك', false),
+                const SizedBox(height: 40),
+                _buildActionSection(),
+              ],
             ),
-            const SizedBox(height: 20),
-            Expanded(child: _buildHandsGrid()),
-            const SizedBox(height: 20),
-            if (_revealed) 
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 20),
-                child: StyledNextButton(text: 'جولة جديدة', onTap: _startGame),
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -77,131 +73,201 @@ class _MheibesGameScreenState extends State<MheibesGameScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF5350),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF1A1A1A), width: 3),
-              ),
-              child: const Icon(Icons.close, color: Colors.white, size: 20),
+          _buildScoreBadge('الخصم', _opponentScore, const Color(0xFFEF5350)),
+          Text(
+            'محيبس',
+            style: GoogleFonts.lalezar(
+              fontSize: 32,
+              color: const Color(0xFFFFD700),
+              letterSpacing: 1.2,
             ),
+          ),
+          _buildScoreBadge(_userName, _myScore, const Color(0xFF4CAF50)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScoreBadge(String label, int score, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.5), width: 2),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.lalezar(fontSize: 12, color: Colors.white70),
           ),
           Text(
-            'لعبة المحيبس',
-            style: GoogleFonts.lalezar(fontSize: 28, color: const Color(0xFF1A1A2E)),
-          ),
-           GestureDetector(
-            onTap: () => setState(() => _isMicOn = !_isMicOn),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _isMicOn ? const Color(0xFFA5D6A7) : Colors.grey,
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFF1A1A1A), width: 2),
-              ),
-              child: Icon(_isMicOn ? Icons.mic : Icons.mic_off, color: Colors.white, size: 24),
-            ),
+            '$score',
+            style: GoogleFonts.lalezar(fontSize: 20, color: Colors.white),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildScoreBoard() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+  Widget _buildTurnIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+      decoration: BoxDecoration(
+        color: _isMyTurn ? const Color(0xFFFF8C00) : Colors.grey.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          if (_isMyTurn)
+            BoxShadow(
+              color: const Color(0xFFFF8C00).withOpacity(0.4),
+              blurRadius: 15,
+              spreadRadius: 2,
+            ),
+        ],
+      ),
+      child: Text(
+        _isMyTurn ? 'دورك الآن' : 'دور الخصم...',
+        style: GoogleFonts.lalezar(
+          fontSize: 22,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTeamSection(String title, bool isOpponent) {
+    return Column(
       children: [
-        _scoreItem('فريقنا', _score1, const Color(0xFF81D4FA)),
-        _scoreItem('فريقهم', _score2, const Color(0xFFFFB74D)),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Text(
+            title,
+            style: GoogleFonts.lalezar(
+              fontSize: 18,
+              color: isOpponent ? Colors.white54 : const Color(0xFFFFD700),
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            children: [
+              _buildPlayerRow(isOpponent, 0),
+              const SizedBox(height: 15),
+              _buildPlayerRow(isOpponent, 5),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  Widget _scoreItem(String team, int score, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF1A1A1A), width: 3),
-      ),
-      child: Row(
+  Widget _buildPlayerRow(bool isOpponent, int startIndex) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: List.generate(5, (index) {
+        int playerIdx = startIndex + index;
+        bool isSelected = !isOpponent && _selectedPlayerIndex == playerIdx;
+        return _buildPlayerAvatar(isOpponent, playerIdx, isSelected);
+      }),
+    );
+  }
+
+  Widget _buildPlayerAvatar(bool isOpponent, int index, bool isSelected) {
+    return GestureDetector(
+      onTap: () {
+        if (!isOpponent) {
+          setState(() {
+            _selectedPlayerIndex = index;
+          });
+        }
+      },
+      child: Column(
         children: [
-          Text('$score', style: GoogleFonts.lalezar(fontSize: 24, color: Colors.white)),
-          const SizedBox(width: 10),
-          Text(team, style: GoogleFonts.lalezar(fontSize: 18, color: Colors.white)),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            width: 55,
+            height: 55,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected ? const Color(0xFFFFD700) : Colors.white24,
+                width: isSelected ? 4 : 2,
+              ),
+              boxShadow: [
+                if (isSelected)
+                  BoxShadow(
+                    color: const Color(0xFFFFD700).withOpacity(0.6),
+                    blurRadius: 15,
+                    spreadRadius: 2,
+                  ),
+              ],
+            ),
+            child: CircleAvatar(
+              backgroundColor: isOpponent ? Colors.grey.withOpacity(0.2) : const Color(0xFF0F3460),
+              child: Icon(
+                Icons.person,
+                color: isOpponent ? Colors.white24 : Colors.white70,
+                size: 30,
+              ),
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            '${index + 1}',
+            style: GoogleFonts.lalezar(
+              fontSize: 12,
+              color: isSelected ? const Color(0xFFFFD700) : Colors.white38,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildHandsGrid() {
+  Widget _buildActionSection() {
     return Padding(
-      padding: const EdgeInsets.all(20),
-      child: GridView.builder(
-        itemCount: 6,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-           crossAxisCount: 2,
-           childAspectRatio: 1.2,
-           crossAxisSpacing: 15,
-           mainAxisSpacing: 15,
-        ),
-        itemBuilder: (context, index) {
-          bool hasRing = index == _handWithRing;
-          bool isSelected = index == _selectedHand;
-          return _handWidget(index, hasRing, isSelected);
+      padding: const EdgeInsets.only(bottom: 40, left: 30, right: 30),
+      child: GestureDetector(
+        onTap: () {
+          if (_selectedPlayerIndex != -1) {
+            // Handle player selection
+          }
         },
-      ),
-    );
-  }
-
-  Widget _handWidget(int index, bool hasRing, bool isSelected) {
-    IconData icon;
-    Color color = Colors.white;
-    
-    if (!_revealed) {
-      icon = Icons.front_hand;
-      color = const Color(0xFFFFCC80);
-    } else {
-       if (hasRing) {
-         icon = Icons.ring_volume; // Use ring icon placeholder
-         color = const Color(0xFFFFD700);
-       } else {
-         icon = Icons.pan_tool;
-         color = Colors.grey.shade300;
-       }
-    }
-
-    return GestureDetector(
-      onTap: () => _onHandTap(index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isSelected ? const Color(0xFFEF5350) : const Color(0xFF1A1A1A),
-            width: isSelected ? 4 : 2,
-          ),
-          boxShadow: [
-             if (isSelected) const BoxShadow(color: Color(0xFFEF5350), blurRadius: 10),
-          ],
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-               Icon(icon, size: 48, color: isSelected ? const Color(0xFFEF5350) : const Color(0xFF1A1A2E)),
-               const SizedBox(height: 5),
-               if (_revealed && hasRing) Text('لقيته!', style: GoogleFonts.lalezar(fontSize: 16)),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: double.infinity,
+          height: 65,
+          decoration: BoxDecoration(
+            color: _selectedPlayerIndex != -1 ? const Color(0xFFFF8C00) : Colors.grey.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              if (_selectedPlayerIndex != -1)
+                BoxShadow(
+                  color: const Color(0xFFFF8C00).withOpacity(0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
             ],
+            border: Border.all(
+              color: _selectedPlayerIndex != -1 ? const Color(0xFFFFD700) : Colors.white10,
+              width: 2,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              'اختر اللاعب',
+              style: GoogleFonts.lalezar(
+                fontSize: 24,
+                color: _selectedPlayerIndex != -1 ? Colors.white : Colors.white24,
+                letterSpacing: 1.1,
+              ),
+            ),
           ),
         ),
       ),

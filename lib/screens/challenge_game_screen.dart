@@ -2,7 +2,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/styled_widgets.dart';
-import '../data/game_data.dart';
+import '../data/services/ai_service.dart';
+import '../data/services/tts_service.dart';
 
 class ChallengeGameScreen extends StatefulWidget {
   final String title;
@@ -33,6 +34,8 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> with TickerPr
   double _currentRotation = 0;
   String _selectedPlayer = '';
   String _currentTask = '';
+  String? _nextAITask;
+  bool _isLoadingAI = false;
   final Random _random = Random();
 
   @override
@@ -53,10 +56,27 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> with TickerPr
         _onWheelStop();
       }
     });
+
+    _fetchNextTask(); // initial fetch
+  }
+
+  Future<void> _fetchNextTask() async {
+    if (_nextAITask != null || _isLoadingAI) return;
+    setState(() => _isLoadingAI = true);
+    final task = await AIService.getChallenge();
+    if (mounted) {
+      setState(() {
+        _nextAITask = task;
+        _isLoadingAI = false;
+      });
+    }
   }
 
   void _spinWheel() {
     if (_wheelController.isAnimating) return;
+    // Start fetching while spinning if we don't have one
+    _fetchNextTask();
+    
     setState(() {
       double extraRounds = 4 + _random.nextInt(4).toDouble();
       double targetRotation = _currentRotation + (extraRounds * 2 * pi) + _random.nextDouble() * 2 * pi;
@@ -69,16 +89,37 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> with TickerPr
     });
   }
 
-  void _onWheelStop() {
+  void _onWheelStop() async {
     double normalizedRotation = (2 * pi - (_currentRotation % (2 * pi))) % (2 * pi);
     double sectionAngle = (2 * pi) / widget.players.length;
     int index = (normalizedRotation / sectionAngle).floor() % widget.players.length;
     
-    setState(() {
-      _selectedPlayer = widget.players[index];
-      _currentTask = GameData.questions[widget.title]![_random.nextInt(GameData.questions[widget.title]!.length)];
-      _state = GameState.task;
-    });
+    // If AI task isn't ready, wait a bit or use a fallback (not needed if we fetch early)
+    if (_nextAITask == null) {
+      setState(() {
+        _selectedPlayer = widget.players[index];
+        _currentTask = "لحظة، جاري جلب تحدي ذكي...";
+        _state = GameState.task;
+      });
+      // Try fetching again to be safe
+      await _fetchNextTask();
+      if (mounted && _nextAITask != null) {
+        setState(() {
+          _currentTask = _nextAITask!;
+          _nextAITask = null;
+        });
+      }
+    } else {
+      setState(() {
+        _selectedPlayer = widget.players[index];
+        _currentTask = _nextAITask!;
+        _nextAITask = null;
+        _state = GameState.task;
+      });
+      TTSService.speak(_currentTask);
+    }
+    // Pre-fetch for next round
+    _fetchNextTask();
   }
 
   void _showExitDialog() {
@@ -92,8 +133,8 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> with TickerPr
             text: 'نعم',
             color: const Color(0xFFA5D6A7),
             onTap: () {
-              Navigator.pop(context); // Close dialog
-              Navigator.popUntil(context, (route) => route.isFirst); // Go to Home
+              Navigator.pop(context); 
+              Navigator.popUntil(context, (route) => route.isFirst);
             },
           ),
           DialogButton(
@@ -199,7 +240,6 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> with TickerPr
     return Column(
       children: [
         const SizedBox(height: 30),
-        // Hanging Player Name Box
         Stack(
           alignment: Alignment.topCenter,
           children: [
@@ -216,20 +256,13 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> with TickerPr
                 style: GoogleFonts.lalezar(fontSize: 24, color: const Color(0xFF1A1A2E)),
               ),
             ),
-            // The "hanging" point
             Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A),
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFFFD54F), width: 2),
-              ),
+              width: 12, height: 12,
+              decoration: BoxDecoration(color: const Color(0xFF1A1A1A), shape: BoxShape.circle, border: Border.all(color: const Color(0xFFFFD54F), width: 2)),
             ),
           ],
         ),
         const SizedBox(height: 20),
-        // Task Box
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 30),
           padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 50),
@@ -239,10 +272,30 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> with TickerPr
             borderRadius: BorderRadius.circular(32),
             border: Border.all(color: const Color(0xFF1A1A2E).withOpacity(0.8), width: 4),
           ),
-          child: Text(
-            _currentTask,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.lalezar(fontSize: 28, color: const Color(0xFF1A1A2E)),
+          child: Column(
+            children: [
+              if (_currentTask.startsWith("لحظة")) 
+                const Padding(padding: EdgeInsets.only(bottom: 20), child: CircularProgressIndicator(color: Color(0xFF1A1A2E))),
+              Text(
+                _currentTask,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.lalezar(fontSize: 28, color: const Color(0xFF1A1A2E)),
+              ),
+              const SizedBox(height: 20),
+              if (!_currentTask.startsWith("لحظة"))
+                GestureDetector(
+                  onTap: () => TTSService.speak(_currentTask),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFD54F),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF1A1A1A), width: 2),
+                    ),
+                    child: const Icon(Icons.volume_up_rounded, color: Color(0xFF1A1A2E), size: 30),
+                  ),
+                ),
+            ],
           ),
         ),
         const SizedBox(height: 50),
@@ -275,7 +328,6 @@ class SimpleWheelPainter extends CustomPainter {
     final double arcAngle = (2 * pi) / players.length;
     final Paint paint = Paint()..style = PaintingStyle.fill;
     final Paint borderPaint = Paint()..color = const Color(0xFF1A1A1A)..style = PaintingStyle.stroke..strokeWidth = 4;
-
     for (int i = 0; i < players.length; i++) {
       paint.color = colors[i % colors.length];
       canvas.drawArc(Rect.fromCircle(center: center, radius: radius), i * arcAngle, arcAngle, true, paint);
@@ -288,16 +340,8 @@ class SimpleWheelPainter extends CustomPainter {
   }
 
   void _drawText(Canvas canvas, String text, Offset center, double radius, double angle) {
-    canvas.save();
-    canvas.translate(center.dx, center.dy);
-    canvas.rotate(angle);
-    final tp = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: GoogleFonts.lalezar(fontSize: 16, color: const Color(0xFF1A1A2E), fontWeight: FontWeight.bold),
-      ),
-      textDirection: TextDirection.rtl,
-    )..layout();
+    canvas.save(); canvas.translate(center.dx, center.dy); canvas.rotate(angle);
+    final tp = TextPainter(text: TextSpan(text: text, style: GoogleFonts.lalezar(fontSize: 14, color: const Color(0xFF1A1A2E), fontWeight: FontWeight.bold)), textDirection: TextDirection.rtl)..layout();
     tp.paint(canvas, Offset(radius * 0.4, -tp.height / 2));
     canvas.restore();
   }

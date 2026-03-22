@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../widgets/styled_widgets.dart';
+import '../data/services/auth_service.dart';
+import '../data/services/xo_game_service.dart';
 
 class XOGameScreen extends StatefulWidget {
   const XOGameScreen({super.key});
@@ -10,80 +13,150 @@ class XOGameScreen extends StatefulWidget {
 }
 
 class _XOGameScreenState extends State<XOGameScreen> {
-  List<String> _board = List.generate(9, (index) => '');
-  bool _xTurn = true;
-  int _scoreX = 0;
-  int _scoreO = 0;
-  bool _isMicOn = true;
+  final XOGameService _gameService = XOGameService();
+  String? _roomId;
+  bool _isCreating = false;
+  bool _isJoining = false;
+  String? _playerName;
+  StreamSubscription<XOGameState?>? _gameSub;
+  XOGameState? _gameState;
+  final TextEditingController _joinController = TextEditingController();
 
-  void _onTap(int index) {
-    if (_board[index] == '') {
-      setState(() {
-        _board[index] = _xTurn ? 'X' : 'O';
-        _xTurn = !_xTurn;
-        _checkWinner();
-      });
+  @override
+  void initState() {
+    super.initState();
+    _initPlayer();
+  }
+
+  Future<void> _initPlayer() async {
+    final name = await AuthService.getUserName();
+    if (mounted) setState(() => _playerName = name);
+  }
+
+  @override
+  void dispose() {
+    _gameSub?.cancel();
+    _joinController.dispose();
+    super.dispose();
+  }
+
+  void _createRoom() async {
+    if (_playerName == null) return;
+    setState(() => _isCreating = true);
+    try {
+      final id = await _gameService.createRoom(_playerName!);
+      _listenToGame(id);
+      setState(() => _roomId = id);
+    } catch (e) {
+      if (mounted) setState(() => _isCreating = false);
+      _showError('خطأ في إنشاء الغرفة');
     }
   }
 
-  void _checkWinner() {
-    List<List<int>> winLines = [
-      [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
-      [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
-      [0, 4, 8], [2, 4, 6]             // Diagonals
-    ];
+  void _joinRoom() async {
+    final id = _joinController.text.trim();
+    if (id.isEmpty || _playerName == null) return;
+    setState(() => _isJoining = true);
+    try {
+      await _gameService.joinRoom(id, _playerName!);
+      _listenToGame(id);
+      setState(() => _roomId = id);
+    } catch (e) {
+      if (mounted) setState(() => _isJoining = false);
+      _showError('الغرفة غير موجودة');
+    }
+  }
 
-    for (var line in winLines) {
-      if (_board[line[0]] != '' &&
-          _board[line[0]] == _board[line[1]] &&
-          _board[line[0]] == _board[line[2]]) {
-        _showWinDialog(_board[line[0]]);
+  void _listenToGame(String id) {
+    _gameSub?.cancel();
+    _gameSub = _gameService.gameStream(id).listen((state) {
+      if (!mounted) return;
+      if (state == null) {
+        if (_roomId != null) _showRoomDeletedDialog();
         return;
       }
-    }
-
-    if (!_board.contains('')) {
-      _showWinDialog('Draw');
-    }
+      setState(() {
+        _gameState = state;
+        _isCreating = false;
+        _isJoining = false;
+      });
+      if (state.winner != null) {
+        _showWinnerDialog(state.winner!);
+      }
+    });
   }
 
-  void _showWinDialog(String winner) {
-    if (winner == 'X') _scoreX++;
-    if (winner == 'O') _scoreO++;
-
+  void _showRoomDeletedDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => CustomDialog(
-        title: winner == 'Draw' ? 'تعادل!' : 'فوز!',
-        message: winner == 'Draw' ? 'لا يوجد رابح في هذه الجولة' : 'مبروك للاعب $winner!',
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('تنبيه!', textAlign: TextAlign.center, style: GoogleFonts.lalezar(color: Colors.red)),
+        content: Text('تم إغلاق الغرفة من قبل المضيف أو انتهت الجلسة.', textAlign: TextAlign.center, style: GoogleFonts.lalezar()),
         actions: [
-          DialogButton(
-            text: 'إعادة اللعب',
-            color: const Color(0xFFA5D6A7),
-            onTap: () {
-              Navigator.pop(context);
-              _resetBoard();
-            },
-          ),
-          DialogButton(
-            text: 'خروج',
-            color: const Color(0xFFEF5350),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-          ),
+          Center(child: ElevatedButton(onPressed: () { Navigator.pop(context); _clearGameState(); }, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A1A2E)), child: Text('تمام', style: GoogleFonts.lalezar(color: Colors.white)))),
         ],
       ),
     );
   }
 
-  void _resetBoard() {
-    setState(() {
-      _board = List.generate(9, (index) => '');
-      _xTurn = true;
-    });
+  void _clearGameState() {
+    if (mounted) {
+      setState(() { _roomId = null; _gameState = null; _isCreating = false; _isJoining = false; });
+      _gameSub?.cancel();
+    }
+  }
+
+  Future<void> _onExit() async {
+    if (_roomId != null && _gameState != null) {
+      if (_gameState!.player1Id == _playerName) { await _gameService.deleteRoom(_roomId!); }
+    }
+    _clearGameState();
+  }
+
+  void _onTapBoard(int index) {
+    if (_gameState == null || _gameState!.winner != null) return;
+    if (_gameState!.board[index] != '') return;
+    bool isMyTurn = (_gameState!.player1Id == _playerName && _gameState!.currentTurn == 'player1') || (_gameState!.player2Id == _playerName && _gameState!.currentTurn == 'player2');
+    if (!isMyTurn) return;
+    final newBoard = List<String>.from(_gameState!.board);
+    final mySymbol = _gameState!.player1Id == _playerName ? 'X' : 'O';
+    newBoard[index] = mySymbol;
+    final winner = _checkLocalWinner(newBoard);
+    final myType = _gameState!.player1Id == _playerName ? 'player1' : 'player2';
+    _gameService.makeMove(_roomId!, index, myType, newBoard, winner);
+  }
+
+  String? _checkLocalWinner(List<String> b) {
+    const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    for (var l in lines) {
+      if (b[l[0]] != '' && b[l[0]] == b[l[1]] && b[l[0]] == b[l[2]]) {
+        return b[l[0]] == 'X' ? _gameState!.player1Id : _gameState!.player2Id;
+      }
+    }
+    if (!b.contains('')) return 'draw';
+    return null;
+  }
+
+  void _showWinnerDialog(String winner) {
+    String msg = winner == 'draw' ? 'تعادل!' : (winner == _playerName ? 'مبروك! أنت الفائز 🎉' : 'حظ أوفر المرة القادمة!');
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text('انتهت اللعبة!', textAlign: TextAlign.center, style: GoogleFonts.lalezar(fontSize: 28)),
+        content: Text(msg, textAlign: TextAlign.center, style: GoogleFonts.lalezar(fontSize: 20)),
+        actions: [
+          Center(child: ElevatedButton(onPressed: () { Navigator.pop(context); _onExit(); }, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF5350), padding: const EdgeInsets.symmetric(horizontal: 40)), child: Text('تمام', style: GoogleFonts.lalezar(color: Colors.white)))),
+        ],
+      ),
+    );
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg, style: GoogleFonts.lalezar()), backgroundColor: Colors.red));
   }
 
   @override
@@ -91,146 +164,134 @@ class _XOGameScreenState extends State<XOGameScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildScoreBoard(),
-            const SizedBox(height: 30),
-            _buildGrid(),
-            const SizedBox(height: 40),
-            _buildControls(),
-          ],
-        ),
+        child: LayoutBuilder(builder: (context, constraints) {
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: Opacity(
+                  opacity: 0.05,
+                  child: SingleChildScrollView(
+                    physics: const NeverScrollableScrollPhysics(),
+                    child: Wrap(
+                      spacing: 40, runSpacing: 40,
+                      children: List.generate(100, (index) => const Icon(Icons.grid_3x3, size: 40))
+                    ),
+                  )
+                ),
+              ),
+              Positioned.fill(
+                child: (_roomId == null || _gameState == null) ? _buildMenu() : _buildGame()
+              ),
+            ],
+          );
+        }),
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildMenu() {
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF5350),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF1A1A1A), width: 3),
-              ),
-              child: const Icon(Icons.close, color: Colors.white, size: 20),
+          _buildHeader('XO - غرفة الأونلاين', onBack: () => Navigator.pop(context)),
+          const SizedBox(height: 20),
+          if (_playerName != null)
+            Container(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10), decoration: BoxDecoration(color: const Color(0xFFA5D6A7).withOpacity(0.2), borderRadius: BorderRadius.circular(30), border: Border.all(color: const Color(0xFFA5D6A7))), child: Text('مرحباً بك يا $_playerName', style: GoogleFonts.lalezar(color: const Color(0xFF2E7D32)))),
+          const SizedBox(height: 40),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Column(
+              children: [
+                _actionButton(title: 'إنشاء غرفة جديدة', icon: Icons.add_rounded, color: const Color(0xFF64B5F6), onTap: _createRoom, isLoading: _isCreating),
+                const SizedBox(height: 15),
+                _actionButton(title: 'الانضمام لغرفة', icon: Icons.login_rounded, color: const Color(0xFFFFCC33), onTap: () {
+                  showDialog(context: context, builder: (context) => AlertDialog(
+                    title: Text('ادخل كود الغرفة', style: GoogleFonts.lalezar()),
+                    content: TextField(controller: _joinController, textAlign: TextAlign.center, keyboardType: TextInputType.number, decoration: InputDecoration(hintText: 'مثلاً: 1234', border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)))),
+                    actions: [TextButton(onPressed: () { Navigator.pop(context); _joinRoom(); }, child: Text('دخول', style: GoogleFonts.lalezar()))],
+                  ));
+                }, isLoading: _isJoining),
+              ],
             ),
           ),
-          Text(
-            'XO - أونلاين',
-            style: GoogleFonts.lalezar(fontSize: 28, color: const Color(0xFF1A1A2E)),
-          ),
-          GestureDetector(
-            onTap: () => setState(() => _isMicOn = !_isMicOn),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _isMicOn ? const Color(0xFFA5D6A7) : Colors.grey,
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFF1A1A1A), width: 2),
-              ),
-              child: Icon(_isMicOn ? Icons.mic : Icons.mic_off, color: Colors.white, size: 24),
-            ),
-          ),
+          const SizedBox(height: 50),
         ],
       ),
+    );
+  }
+
+  Widget _actionButton({required String title, required IconData icon, required Color color, required VoidCallback onTap, bool isLoading = false}) {
+    return GestureDetector(
+      onTap: isLoading ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(24), border: Border.all(color: const Color(0xFF1A1A1A), width: 3), boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5))]),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          if (isLoading) const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+          else Icon(icon, color: Colors.white, size: 28),
+          const SizedBox(width: 15),
+          Text(title, style: GoogleFonts.lalezar(fontSize: 22, color: Colors.white)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildHeader(String title, {required VoidCallback onBack}) {
+    return Padding(padding: const EdgeInsets.all(20), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+      GestureDetector(onTap: onBack, child: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF1A1A1A), width: 2)), child: const Icon(Icons.arrow_back_ios_new_rounded, size: 20))),
+      Text(title, style: GoogleFonts.lalezar(fontSize: 28, color: const Color(0xFF1A1A2E))),
+      const SizedBox(width: 40),
+    ]));
+  }
+
+  Widget _buildGame() {
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildHeader('اللعب المباشر', onBack: _onExit),
+          if (_gameState!.player2Id == null) _buildRoomHeader(),
+          _buildScoreBoard(),
+          const SizedBox(height: 30),
+          _buildGrid(),
+          const SizedBox(height: 30),
+          _buildStatusIndicator(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusIndicator() {
+    bool isMyTurn = (_gameState!.player1Id == _playerName && _gameState!.currentTurn == 'player1') || (_gameState!.player2Id == _playerName && _gameState!.currentTurn == 'player2');
+    return Container(padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15), decoration: BoxDecoration(color: isMyTurn ? const Color(0xFFEF5350) : Colors.grey.withOpacity(0.2), borderRadius: BorderRadius.circular(30), border: Border.all(color: const Color(0xFF1A1A1A), width: 3)), child: Text(isMyTurn ? 'دورك الآن يا بطل!' : 'انتظر خصمك يخلص...', style: GoogleFonts.lalezar(fontSize: 22, color: isMyTurn ? Colors.white : Colors.grey)));
+  }
+
+  Widget _buildRoomHeader() {
+    return Container(padding: const EdgeInsets.all(12), margin: const EdgeInsets.all(15), decoration: BoxDecoration(color: const Color(0xFF1A1A2E), borderRadius: BorderRadius.circular(24), border: Border.all(color: const Color(0xFFFFD700), width: 2)),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('كود الغرفة:', style: GoogleFonts.lalezar(fontSize: 12, color: Colors.white70)), Text(_roomId!, style: GoogleFonts.lalezar(fontSize: 28, color: const Color(0xFFFFD700), letterSpacing: 2))]),
+        ElevatedButton(onPressed: () => Clipboard.setData(ClipboardData(text: _roomId!)), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFD700), foregroundColor: Colors.black), child: Text('نسخ الكود', style: GoogleFonts.lalezar()))
+      ]),
     );
   }
 
   Widget _buildScoreBoard() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _playerScore('اللاعب X', _scoreX, const Color(0xFF64B5F6), _xTurn),
-        _playerScore('اللاعب O', _scoreO, const Color(0xFFFFCC33), !_xTurn),
-      ],
-    );
+    return Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+      _playerScore(_gameState!.player1Id, 'X', const Color(0xFF64B5F6), _gameState!.currentTurn == 'player1'),
+      const Icon(Icons.bolt_rounded, color: Color(0xFFFFCC33), size: 40),
+      _playerScore(_gameState!.player2Id ?? 'بانتظار المنافس...', 'O', const Color(0xFFFFCC33), _gameState!.currentTurn == 'player2')
+    ]));
   }
 
-  Widget _playerScore(String name, int score, Color color, bool isActive) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withOpacity(isActive ? 1 : 0.4),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF1A1A1A), width: isActive ? 3 : 1),
-      ),
-      child: Column(
-        children: [
-          Text(name, style: GoogleFonts.lalezar(fontSize: 18, color: Colors.white)),
-          Text('$score', style: GoogleFonts.lalezar(fontSize: 28, color: Colors.white)),
-        ],
-      ),
-    );
+  Widget _playerScore(String name, String symbol, Color color, bool isActive) {
+    return Expanded(child: Container(padding: const EdgeInsets.all(12), margin: const EdgeInsets.symmetric(horizontal: 5), decoration: BoxDecoration(color: isActive ? color.withOpacity(0.2) : Colors.transparent, borderRadius: BorderRadius.circular(20), border: Border.all(color: isActive ? color : Colors.transparent, width: 2)),
+      child: Column(children: [Text(symbol, style: GoogleFonts.lalezar(fontSize: 32, color: color)), Text(name, overflow: TextOverflow.ellipsis, style: GoogleFonts.lalezar(fontSize: 14))])));
   }
 
   Widget _buildGrid() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 30),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF1A1A1A), width: 4),
-      ),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-        ),
-        itemCount: 9,
-        itemBuilder: (context, index) {
-          return GestureDetector(
-            onTap: () => _onTap(index),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Text(
-                  _board[index],
-                  style: GoogleFonts.lalezar(
-                    fontSize: 48,
-                    color: _board[index] == 'X' ? const Color(0xFF64B5F6) : const Color(0xFFFFCC33),
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildControls() {
-    return Column(
-      children: [
-        if (_isMicOn)
-          Container(
-            padding: const EdgeInsets.all(15),
-             decoration: BoxDecoration(
-               color: const Color(0xFFA5D6A7).withOpacity(0.2),
-               shape: BoxShape.circle,
-             ),
-             child: const Icon(Icons.spatial_audio_off, color: Color(0xFFA5D6A7), size: 40),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            _isMicOn ? 'صوتك مسموع للفريق الآخر' : 'المايك مكتوم',
-            style: GoogleFonts.lalezar(fontSize: 14, color: Colors.grey),
-          ),
-      ],
-    );
+    return Container(padding: const EdgeInsets.all(20), margin: const EdgeInsets.symmetric(horizontal: 20), decoration: BoxDecoration(color: const Color(0xFF1A1A2E), borderRadius: BorderRadius.circular(32), border: Border.all(color: const Color(0xFF1A1A1A), width: 4)),
+      child: GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 15, mainAxisSpacing: 15), itemCount: 9,
+        itemBuilder: (context, index) => GestureDetector(onTap: () => _onTapBoard(index), child: Container(decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(16)), child: Center(child: Text(_gameState!.board[index], style: GoogleFonts.lalezar(fontSize: 48, color: _gameState!.board[index] == 'X' ? const Color(0xFF64B5F6) : const Color(0xFFFFCC33))))))));
   }
 }
