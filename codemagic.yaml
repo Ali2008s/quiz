@@ -1,6 +1,6 @@
 workflows:
-  android_apk_with_shorebird:
-    name: Build Android APK with Shorebird
+  android_shorebird_patch:
+    name: Build Android Shorebird Patch
     max_build_duration: 60
     environment:
       flutter: stable
@@ -9,8 +9,26 @@ workflows:
         script: |
           pub global activate shorebird_cli
           export PATH="$PATH":"$HOME/.pub-cache/bin"
-      - name: Shorebird build APK
+      - name: Shorebird patch android
         script: |
-          shorebird build android --release --artifact apk
+          shorebird patch android --no-codesign --force
     artifacts:
-      - build/app/outputs/flutter-apk/app-release.apk
+      - build/app/outputs/bundle/release/app-release.aab
+
+  ios_shorebird_patch:
+    name: Build iOS Shorebird Patch (No Codesign)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest
+    scripts:
+      - name: Install Shorebird CLI
+        script: |
+          pub global activate shorebird_cli
+          export PATH="$PATH":"$HOME/.pub-cache/bin"
+      - name: Shorebird patch ios
+        script: |
+          shorebird patch ios --no-codesign --force
+    artifacts:
+      - build/ios/iphoneos/Runner.app
