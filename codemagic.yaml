@@ -10,6 +10,3 @@ workflows:
           shorebird build android --release --artifact apk
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
-    publishing:
-      shorebird:
-        enabled: true
