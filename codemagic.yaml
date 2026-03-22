@@ -1,0 +1,15 @@
+workflows:
+  android_apk_with_shorebird:
+    name: Build Android APK with Shorebird
+    max_build_duration: 60
+    environment:
+      flutter: stable
+    scripts:
+      - name: Shorebird build APK
+        script: |
+          shorebird build android --release --artifact apk
+    artifacts:
+      - build/app/outputs/flutter-apk/app-release.apk
+    publishing:
+      shorebird:
+        enabled: true
