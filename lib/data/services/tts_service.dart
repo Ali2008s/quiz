@@ -3,8 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
 import 'app_settings.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:js' as js;
+import 'tts_web_adapter.dart';
 
 class TTSService {
   static const String _apiBase =
@@ -17,7 +16,7 @@ class TTSService {
 
     if (kIsWeb) {
       // Use built-in browser Web Speech API — no CORS issues
-      _speakWithBrowserTTS(text);
+      speakWithBrowserTTS(text);
       return;
     }
 
@@ -45,31 +44,9 @@ class TTSService {
     }
   }
 
-  // Uses browser's native SpeechSynthesis — works on Chrome/Edge/Safari
-  static void _speakWithBrowserTTS(String text) {
-    try {
-      js.context.callMethod('eval', [
-        '''
-        (function() {
-          window.speechSynthesis.cancel();
-          var u = new SpeechSynthesisUtterance(${jsonEncode(text)});
-          u.lang = 'ar-IQ';
-          u.rate = 0.9;
-          u.pitch = 1.0;
-          window.speechSynthesis.speak(u);
-        })();
-        '''
-      ]);
-    } catch (e) {
-      print('Browser TTS Error: $e');
-    }
-  }
-
   static void stop() {
     if (kIsWeb) {
-      try {
-        js.context.callMethod('eval', ['window.speechSynthesis.cancel();']);
-      } catch (_) {}
+      stopWithBrowserTTS();
       return;
     }
     _player.stop();
