@@ -5,6 +5,7 @@ import 'xo_game_screen.dart';
 import 'rps_game_screen.dart';
 import 'domino_game_screen.dart';
 import '../data/services/auth_service.dart';
+import '../data/services/audio_service.dart';
 
 class OnlineGamesScreen extends StatefulWidget {
   const OnlineGamesScreen({super.key});
@@ -92,6 +93,7 @@ class _OnlineGamesScreenState extends State<OnlineGamesScreen> {
             child: ElevatedButton(
               onPressed: () async {
                 if (nameController.text.isNotEmpty) {
+                  AudioService.playClick();
                   await AuthService.setUserName(nameController.text);
                   setState(() => _userName = nameController.text);
                   Navigator.pop(context);

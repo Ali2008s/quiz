@@ -80,7 +80,10 @@ class _PointStoreScreenState extends State<PointStoreScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () {
+                      AudioService.playClick();
+                      Navigator.pop(context);
+                    },
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
@@ -216,7 +219,10 @@ class _PointStoreScreenState extends State<PointStoreScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: isLocked ? null : onTap,
+          onTap: isLocked ? null : () {
+            AudioService.playClick();
+            onTap();
+          },
           borderRadius: BorderRadius.circular(20),
           child: Padding(
             padding: const EdgeInsets.all(20),

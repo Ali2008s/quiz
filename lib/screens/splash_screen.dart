@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'main_navigation_screen.dart';
+import '../data/services/audio_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -15,6 +16,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
+    
+    // تأخير تشغيل الصوت حتى يكتمل بناء واجهة التطبيق
+    Future.microtask(() async {
+      await AudioService.init();
+      AudioService.updateBgmState();
+    });
+
     _controller = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -45,8 +53,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         children: [
           // Pattern Background (Simulated with simple icons if pattern image missing)
           Positioned.fill(
-            child: Opacity(
-              opacity: 0.05,
+            child: IgnorePointer(
               child: GridView.builder(
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -55,7 +62,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 itemBuilder: (context, index) => Icon(
                   index % 3 == 0 ? Icons.fingerprint : 
                   index % 3 == 1 ? Icons.question_mark : Icons.emoji_objects,
-                  color: Colors.grey,
+                  color: Colors.grey.withOpacity(0.05),
                   size: 40,
                 ),
               ),

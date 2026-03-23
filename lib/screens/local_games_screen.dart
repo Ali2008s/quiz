@@ -20,8 +20,7 @@ class LocalGamesScreen extends StatelessWidget {
           children: [
             // Subdued icon pattern background
             Positioned.fill(
-              child: Opacity(
-                opacity: 0.03,
+              child: IgnorePointer(
                 child: SingleChildScrollView(
                   physics: const NeverScrollableScrollPhysics(),
                   child: Wrap(
@@ -38,7 +37,7 @@ class LocalGamesScreen extends StatelessWidget {
                           Icons.visibility,
                         ][index % 5],
                         size: 40,
-                        color: Colors.grey,
+                        color: Colors.grey.withOpacity(0.05),
                       ),
                     ),
                   ),

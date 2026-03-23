@@ -53,8 +53,7 @@ class _GameWinScreenState extends State<GameWinScreen> {
         children: [
           // Background icon pattern (matching LocalGamesScreen)
           Positioned.fill(
-            child: Opacity(
-              opacity: 0.05,
+            child: IgnorePointer(
               child: SingleChildScrollView(
                 physics: const NeverScrollableScrollPhysics(),
                 child: Wrap(
@@ -72,7 +71,7 @@ class _GameWinScreenState extends State<GameWinScreen> {
                         Icons.extension_rounded,
                       ][i % 6],
                       size: 35,
-                      color: const Color(0xFF1A1A2E),
+                      color: const Color(0xFF1A1A2E).withOpacity(0.05),
                     ),
                   ),
                 ),

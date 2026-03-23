@@ -248,4 +248,8 @@ class DominoGameService {
       'current_turn': _getNextTurn(state.currentTurn, state.maxPlayers),
     }).eq('id', roomId);
   }
+
+  Future<void> deleteRoom(String roomId) async {
+    await _supabase.from('domino_games').delete().eq('id', roomId);
+  }
 }

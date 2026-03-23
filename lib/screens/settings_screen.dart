@@ -153,8 +153,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           children: [
             // Subtle icon pattern background
             Positioned.fill(
-              child: Opacity(
-                opacity: 0.03,
+              child: IgnorePointer(
                 child: SingleChildScrollView(
                   physics: const NeverScrollableScrollPhysics(),
                   child: Wrap(
@@ -170,7 +169,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                           Icons.close,
                         ][i % 4],
                         size: 40,
-                        color: Colors.grey,
+                        color: Colors.grey.withOpacity(0.05),
                       ),
                     ),
                   ),

@@ -6,6 +6,7 @@ import 'leaderboard_screen.dart';
 import 'point_store_screen.dart';
 import 'settings_screen.dart';
 import '../data/services/point_service.dart';
+import '../data/services/audio_service.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -24,6 +25,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   ];
 
   void _onItemTapped(int index) {
+    AudioService.playClick();
     setState(() {
       _selectedIndex = index;
     });
@@ -43,6 +45,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             // Points Badge (Store button)
             GestureDetector(
               onTap: () async {
+                AudioService.playClick();
                 await Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -83,12 +86,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
             // Settings Button (Right side)
             GestureDetector(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const SettingsScreen(),
-                ),
-              ),
+              onTap: () {
+                AudioService.playClick();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SettingsScreen(),
+                  ),
+                );
+              },
               child: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(

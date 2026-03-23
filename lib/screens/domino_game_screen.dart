@@ -5,6 +5,7 @@ import '../data/services/auth_service.dart';
 import '../data/services/domino_game_service.dart';
 import '../data/services/audio_service.dart';
 import 'game_win_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DominoGameScreen extends StatefulWidget {
   const DominoGameScreen({super.key});
@@ -23,6 +24,8 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
   Timer? _pollTimer;
   DominoGameState? _gameState;
   final TextEditingController _joinController = TextEditingController();
+  RealtimeChannel? _presence;
+  Timer? _dcTimer;
 
   // Settings
   int _playerCount = 2; // 2 or 4
@@ -44,6 +47,8 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
   void dispose() {
     _gameSub?.cancel();
     _pollTimer?.cancel();
+    _dcTimer?.cancel();
+    _presence?.unsubscribe();
     _joinController.dispose();
     super.dispose();
   }
@@ -57,8 +62,9 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
         builder: (context, setModalState) => Container(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(40))),
+              color: Color(0xFF1E2A38),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+              boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 20)]),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -67,12 +73,12 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
                     width: 50,
                     height: 6,
                     decoration: BoxDecoration(
-                        color: Colors.grey[300],
+                        color: Colors.white24,
                         borderRadius: BorderRadius.circular(10))),
                 const SizedBox(height: 20),
                 Text(_vsAI ? 'إعدادات اللعب الفردي' : 'إعدادات اللعب الجماعي',
                     style: GoogleFonts.lalezar(
-                        fontSize: 32, color: const Color(0xFF1A1A2E))),
+                        fontSize: 32, color: Colors.white)),
                 const SizedBox(height: 15),
                 if (!_vsAI) ...[
                   _sectionHeader('عدد اللاعبين'),
@@ -122,7 +128,8 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
                 ],
                 const SizedBox(height: 32),
                 _actionBtn('ابدأ اللعبة الآن', Icons.play_arrow_rounded,
-                    const Color(0xFF66BB6A), () {
+                    const Color(0xFF4CAF50), () {
+                  AudioService.playClick();
                   Navigator.pop(context);
                   _createRoom();
                 }),
@@ -140,28 +147,32 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
           alignment: Alignment.centerRight,
           child: Text(t,
               style:
-                  GoogleFonts.lalezar(fontSize: 18, color: Colors.grey[600]))));
+                  GoogleFonts.lalezar(fontSize: 18, color: Colors.white70))));
 
   Widget _setupCard(String t, IconData i, bool s, VoidCallback o) {
     return GestureDetector(
-      onTap: o,
+      onTap: () {
+        AudioService.playClick();
+        o();
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: s ? const Color(0xFF1A1A2E) : const Color(0xFFF5F5F7),
+          color: s ? const Color(0xFF4CAF50).withOpacity(0.2) : Colors.white.withOpacity(0.05),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: s ? const Color(0xFF1A1A2E) : Colors.transparent,
-              width: 3),
+              color: s ? const Color(0xFF4CAF50) : Colors.white24,
+              width: 2),
+          boxShadow: s ? const [BoxShadow(color: Color(0xFF4CAF50), blurRadius: 10, spreadRadius: -5)] : [],
         ),
         child: Column(
           children: [
-            Icon(i, color: s ? Colors.white : Colors.grey[600], size: 28),
+            Icon(i, color: s ? const Color(0xFF4CAF50) : Colors.white70, size: 28),
             const SizedBox(height: 8),
             Text(t,
                 style: GoogleFonts.lalezar(
-                    color: s ? Colors.white : Colors.grey[800], fontSize: 14)),
+                    color: s ? Colors.white : Colors.white70, fontSize: 14)),
           ],
         ),
       ),
@@ -170,16 +181,18 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
 
   Widget _actionBtn(String t, IconData i, Color c, VoidCallback o) {
     return GestureDetector(
-      onTap: o,
+      onTap: () {
+        AudioService.playClick();
+        o();
+      },
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 18),
         decoration: BoxDecoration(
             color: c,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFF1A1A1A), width: 3),
             boxShadow: const [
-              BoxShadow(color: Color(0xFF1A1A1A), offset: Offset(0, 4))
+              BoxShadow(color: Colors.black45, offset: Offset(0, 4), blurRadius: 6)
             ]),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(i, color: Colors.white, size: 28),
@@ -205,9 +218,57 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
     }
   }
 
+  void _setupPresence(String id) {
+    _presence?.unsubscribe();
+    _presence = Supabase.instance.client.channel('domino_pr_$id');
+    _presence!.onPresenceSync((payload) {
+      if (!mounted || _gameState == null || _vsAI) return;
+      
+      bool isFull = true;
+      if (_gameState!.maxPlayers >= 2 && _gameState!.player2Id == null) isFull = false;
+      if (_gameState!.maxPlayers >= 3 && _gameState!.player3Id == null) isFull = false;
+      if (_gameState!.maxPlayers >= 4 && _gameState!.player4Id == null) isFull = false;
+      
+      if (!isFull) return;
+      
+      final List<dynamic> stateList = _presence!.presenceState();
+      final Set<String> users = stateList.map((p) => p.payload['u'].toString()).toSet();
+      
+      List<String> expected = [_gameState!.player1Id];
+      if (_gameState!.player2Id != null && !_gameState!.player2Id!.contains('ذكاء')) expected.add(_gameState!.player2Id!);
+      if (_gameState!.player3Id != null && !_gameState!.player3Id!.contains('ذكاء')) expected.add(_gameState!.player3Id!);
+      if (_gameState!.player4Id != null && !_gameState!.player4Id!.contains('ذكاء')) expected.add(_gameState!.player4Id!);
+      
+      bool missing = false;
+      for (var p in expected) {
+        if (p != _playerName && !users.contains(p)) missing = true;
+      }
+      
+      if (missing) {
+        if (!(_dcTimer?.isActive ?? false)) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم فصل اتصال الخصم! الانتظار 10 ثواني...', style: GoogleFonts.lalezar()), backgroundColor: Colors.orange));
+          _dcTimer = Timer(const Duration(seconds: 10), () {
+            if (mounted) {
+               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إغلاق الغرفة لعدم عودة الخصم.', style: GoogleFonts.lalezar()), backgroundColor: Colors.red));
+               _gameService.deleteRoom(id);
+            }
+          });
+        }
+      } else {
+        if (_dcTimer?.isActive ?? false) {
+           _dcTimer?.cancel();
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('عاد الخصم للعب! ✅', style: GoogleFonts.lalezar()), backgroundColor: Colors.green));
+        }
+      }
+    }).subscribe((status, [e]) async {
+      if (status == 'SUBSCRIBED' && _playerName != null) await _presence!.track({'u': _playerName});
+    });
+  }
+
   void _listenToGame(String id) {
     _gameSub?.cancel();
     _pollTimer?.cancel();
+    _setupPresence(id);
     
     // Web Fallback: Poll every 2 seconds
     _pollTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
@@ -298,15 +359,16 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
     showDialog(
         context: context,
         builder: (context) => AlertDialog(
+                backgroundColor: const Color(0xFF1E2A38),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
-                    side: const BorderSide(width: 3)),
-                title: Text('تنبيه!', style: GoogleFonts.lalezar(color: Colors.red)),
-                content: Text('انتهت الجلسة أو تم حذف الغرفة.', style: GoogleFonts.lalezar()),
+                    side: const BorderSide(color: Colors.white24, width: 2)),
+                title: Text('تنبيه!', style: GoogleFonts.lalezar(color: Colors.redAccent)),
+                content: Text('انتهت الجلسة أو تم حذف الغرفة.', style: GoogleFonts.lalezar(color: Colors.white)),
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
-                      child: Text('تمام', style: GoogleFonts.lalezar()))
+                      child: Text('تمام', style: GoogleFonts.lalezar(color: Colors.orange, fontSize: 18)))
                 ]));
   }
 
@@ -321,40 +383,57 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
     if (_roomId != null && _gameState != null && !isFull) return _waitingScreen();
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-          child: (_roomId == null || _gameState == null)
-              ? _buildMenu()
-              : _buildGame()),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
+          ),
+        ),
+        child: SafeArea(
+            child: (_roomId == null || _gameState == null)
+                ? _buildMenu()
+                : _buildGame()),
+      ),
     );
   }
 
   Widget _waitingScreen() {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          _header('بانتظار المنافسين...', Icons.people_outline, Colors.orange),
-          const SizedBox(height: 30),
-          Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5FA),
-                  borderRadius: BorderRadius.circular(32),
-                  border: Border.all(width: 3)),
-              child: Column(children: [
-                if (!_vsAI) ...[
-                  Text('كود الغرفة: ${_roomId}', style: GoogleFonts.lalezar(fontSize: 32)),
-                  const SizedBox(height: 10),
-                ],
-                Text('بانتظار اكمال العدد (${_gameState!.maxPlayers})', style: GoogleFonts.lalezar(color: Colors.grey[600])),
-                const SizedBox(height: 30),
-                const CircularProgressIndicator(color: Color(0xFF1A1A2E))
-              ])),
-          const SizedBox(height: 40),
-          _actionBtn('إلغاء و خروج', Icons.close, Colors.red[400]!, () => Navigator.pop(context)),
-        ]),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
+          ),
+        ),
+        child: Center(
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            _header('بانتظار المنافسين...', Icons.people_outline, Colors.orange),
+            const SizedBox(height: 30),
+            Container(
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(32),
+                    border: Border.all(color: Colors.white24, width: 2),
+                    boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, spreadRadius: 2)]),
+                child: Column(children: [
+                  if (!_vsAI) ...[
+                    Text('كود الغرفة: ${_roomId}', style: GoogleFonts.lalezar(fontSize: 32, color: Colors.white)),
+                    const SizedBox(height: 10),
+                  ],
+                  Text('بانتظار اكمال العدد (${_gameState!.maxPlayers})', style: GoogleFonts.lalezar(color: Colors.white70, fontSize: 18)),
+                  const SizedBox(height: 30),
+                  const CircularProgressIndicator(color: Colors.orange)
+                ])),
+            const SizedBox(height: 40),
+            _actionBtn('إلغاء و خروج', Icons.close, Colors.redAccent, () => Navigator.pop(context)),
+          ]),
+        ),
       ),
     );
   }
@@ -364,7 +443,7 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(children: [
         const SizedBox(height: 30),
-        _header('لعبة الدومينو', Icons.extension_rounded, const Color(0xFF1A1A2E)),
+        _header('لعبة الدومينو', Icons.extension_rounded, Colors.white),
         const SizedBox(height: 40),
         _menuBox('اللعب الجماعي', 'أدخل الغرفة ونافس أساطير الدومينو', const Color(0xFF64B5F6), Icons.public, () {
           setState(() => _vsAI = false);
@@ -387,22 +466,25 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
 
   Widget _menuBox(String t, String s, Color c, IconData i, VoidCallback o) {
     return GestureDetector(
-      onTap: o,
+      onTap: () {
+        AudioService.playClick();
+        o();
+      },
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-            color: c,
+            color: c.withOpacity(0.9),
             borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: const Color(0xFF1A1A1A), width: 3),
-            boxShadow: const [BoxShadow(color: Color(0xFF1A1A1A), offset: Offset(0, 6))]),
+            border: Border.all(color: Colors.white24, width: 2),
+            boxShadow: const [BoxShadow(color: Colors.black45, offset: Offset(0, 8), blurRadius: 10)]),
         child: Row(children: [
           Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(width: 2)),
+              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)]),
               child: Icon(i, color: c, size: 30)),
           const SizedBox(width: 20),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(t, style: GoogleFonts.lalezar(fontSize: 24, color: Colors.white)),
+                Text(t, style: GoogleFonts.lalezar(fontSize: 24, color: Colors.white, shadows: const [Shadow(color: Colors.black45, offset: Offset(0, 1), blurRadius: 2)])),
                 Text(s, style: GoogleFonts.lalezar(fontSize: 14, color: Colors.white.withOpacity(0.9)))
               ]))
         ]),
@@ -413,10 +495,10 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
   Widget _joinCardUI() {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: const Color(0xFFF5F5F7), borderRadius: BorderRadius.circular(24), border: Border.all(width: 3)),
+      decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.white24, width: 2)),
       child: Row(children: [
-        Expanded(child: TextField(controller: _joinController, textAlign: TextAlign.center, style: GoogleFonts.lalezar(fontSize: 20), decoration: const InputDecoration(hintText: 'كود الغرفة', border: InputBorder.none))),
-        ElevatedButton(onPressed: _joinRoom, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A1A2E), padding: const EdgeInsets.symmetric(horizontal: 24), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), child: Text('دخول', style: GoogleFonts.lalezar(color: Colors.white))),
+        Expanded(child: TextField(controller: _joinController, textAlign: TextAlign.center, style: GoogleFonts.lalezar(fontSize: 20, color: Colors.white), decoration: const InputDecoration(hintText: 'كود الغرفة', hintStyle: TextStyle(color: Colors.white54), border: InputBorder.none))),
+        ElevatedButton(onPressed: _joinRoom, style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, elevation: 5, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), child: Text('دخول', style: GoogleFonts.lalezar(color: Colors.white))),
       ]),
     );
   }
@@ -433,9 +515,9 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
 
   Widget _header(String t, IconData i, Color c) =>
       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(i, color: c, size: 40),
+        Icon(i, color: c, size: 40, shadows: const [Shadow(color: Colors.black45, offset: Offset(0, 2), blurRadius: 4)]),
         const SizedBox(width: 15),
-        Text(t, style: GoogleFonts.lalezar(fontSize: 36, color: const Color(0xFF1A1A2E)))
+        Text(t, style: GoogleFonts.lalezar(fontSize: 36, color: Colors.white, shadows: const [Shadow(color: Colors.black45, offset: Offset(0, 2), blurRadius: 4)]))
       ]);
 
   Widget _buildGame() {
@@ -448,83 +530,222 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
     final myHand = _getMyHand(myRole);
     bool isMyTurn = _gameState!.currentTurn == myRole;
 
+    String topRole = _gameState!.maxPlayers == 2 ? _getLeftRole(myRole) : _getPartnerRole(myRole);
+
     return Column(children: [
-      if (_gameState!.maxPlayers == 4)
-        _playerBadge(_getPartnerName(myRole), _getPartnerHandCount(myRole), isTurn: _gameState!.currentTurn == _getPartnerRole(myRole)),
+      _topArea(topRole),
       Expanded(
           child: Row(children: [
-        _playerBadgeSide(_getLeftOpponentName(myRole), _getLeftOpponentHandCount(myRole), isTurn: _gameState!.currentTurn == _getLeftRole(myRole)),
+        if (_gameState!.maxPlayers == 4)
+          _sideArea(_getLeftRole(myRole)),
         Expanded(child: _boardUI()),
         if (_gameState!.maxPlayers == 4)
-          _playerBadgeSide(_getRightOpponentName(myRole), _getRightOpponentHandCount(myRole), isTurn: _gameState!.currentTurn == _getRightRole(myRole)),
+          _sideArea(_getRightRole(myRole)),
       ])),
       _controlsUI(myHand, isMyTurn),
     ]);
   }
 
-  Widget _playerBadge(String n, int c, {bool isTurn = false}) {
+  Widget _topArea(String role) {
+    int count = _getCount(role);
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 5),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _playerBadge(_getName(role), count, isTurn: _gameState!.currentTurn == role),
+          const SizedBox(height: 6),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 2,
+            runSpacing: 4,
+            children: List.generate(count, (index) => _hiddenTile(vertical: true)),
+          )
+        ]
+      ),
+    );
+  }
+
+  Widget _sideArea(String role) {
+    int count = _getCount(role);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _playerBadgeSide(_getName(role), count, isTurn: _gameState!.currentTurn == role),
+          const SizedBox(height: 12),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(count, (index) => _hiddenTile(vertical: false)),
+          )
+        ]
+      ),
+    );
+  }
+
+  Widget _hiddenTile({bool vertical = true}) {
+    final w = vertical ? 28.0 : 42.0;
+    final h = vertical ? 42.0 : 28.0;
     return Container(
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      decoration: BoxDecoration(color: isTurn ? const Color(0xFFFFF9C4) : const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(20), border: Border.all(color: isTurn ? const Color(0xFFFFCC33) : const Color(0xFF1A1A1A), width: 3)),
+      margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+      width: w,
+      height: h,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9F9F9),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.grey[400]!, width: 1.5),
+        boxShadow: const [BoxShadow(color: Colors.black26, offset: Offset(1, 2), blurRadius: 3)],
+      ),
+      child: Center(
+        child: Container(
+          width: vertical ? 12.0 : 18.0,
+          height: vertical ? 18.0 : 12.0,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            border: Border.all(color: Colors.grey[400]!, width: 1),
+            borderRadius: BorderRadius.circular(3)
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _playerBadge(String n, int c, {bool isTurn = false}) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.only(top: 10, bottom: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: isTurn 
+            ? const LinearGradient(colors: [Color(0xFFFFB75E), Color(0xFFED8F03)])
+            : LinearGradient(colors: [Colors.white.withOpacity(0.1), Colors.white.withOpacity(0.05)]),
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: isTurn ? Colors.amberAccent : Colors.white24, width: isTurn ? 2 : 1),
+        boxShadow: isTurn ? [const BoxShadow(color: Colors.amber, blurRadius: 15, spreadRadius: 2)] : [],
+      ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(n.contains('ذكاء') ? Icons.android : Icons.person, size: 20),
+        Icon(n.contains('ذكاء') ? Icons.android : Icons.person, size: 22, color: isTurn ? Colors.white : Colors.white70),
         const SizedBox(width: 8),
-        Text(n, style: GoogleFonts.lalezar(fontSize: 14)),
+        Text(n, style: GoogleFonts.lalezar(fontSize: 16, color: isTurn ? Colors.white : Colors.white70)),
+        if (isTurn) const Padding(padding: EdgeInsets.only(right: 8), child: Icon(Icons.local_fire_department, color: Colors.white, size: 20)),
         const SizedBox(width: 15),
-        _countB(c)
+        _countB(c, isTurn)
       ]),
     );
   }
 
   Widget _playerBadgeSide(String n, int c, {bool isTurn = false}) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(color: isTurn ? const Color(0xFFFFF9C4) : const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(20), border: Border.all(color: isTurn ? const Color(0xFFFFCC33) : const Color(0xFF1A1A1A), width: 3)),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.symmetric(horizontal: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      decoration: BoxDecoration(
+        gradient: isTurn 
+            ? const LinearGradient(colors: [Color(0xFFFFB75E), Color(0xFFED8F03)])
+            : LinearGradient(colors: [Colors.white.withOpacity(0.1), Colors.white.withOpacity(0.05)]),
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: isTurn ? Colors.amberAccent : Colors.white24, width: isTurn ? 2 : 1),
+        boxShadow: isTurn ? [const BoxShadow(color: Colors.amber, blurRadius: 15, spreadRadius: 2)] : [],
+      ),
       child: RotatedBox(quarterTurns: 1, child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Text(n, style: GoogleFonts.lalezar(fontSize: 12)),
+            if (isTurn) const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.local_fire_department, color: Colors.white, size: 18)),
+            Icon(n.contains('ذكاء') ? Icons.android : Icons.person, size: 18, color: isTurn ? Colors.white : Colors.white70),
+            const SizedBox(width: 6),
+            Text(n, style: GoogleFonts.lalezar(fontSize: 14, color: isTurn ? Colors.white : Colors.white70)),
             const SizedBox(width: 10),
-            _countB(c)
+            _countB(c, isTurn)
           ])),
     );
   }
 
-  Widget _countB(int c) => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(color: const Color(0xFF1A1A2E), borderRadius: BorderRadius.circular(8)),
-      child: Text('$c', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)));
+  Widget _countB(int c, bool isTurn) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: isTurn ? Colors.white24 : Colors.black45, borderRadius: BorderRadius.circular(12)),
+      child: Text('$c', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)));
 
   Widget _boardUI() => Container(
       margin: const EdgeInsets.all(10),
       width: double.infinity,
-      decoration: BoxDecoration(color: const Color(0xFFEDF2F4), borderRadius: BorderRadius.circular(30), border: Border.all(width: 3), boxShadow: const [BoxShadow(color: Color(0xFF1A1A1A), offset: Offset(0, 4))]),
-      child: SingleChildScrollView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.all(30), child: Row(mainAxisSize: MainAxisSize.min, children: _gameState!.board.map((p) => _tile(p, small: true)).toList())));
+      decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: Colors.white10, width: 2),
+          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 20, spreadRadius: 2)]
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Watermark
+          Opacity(
+            opacity: 0.05,
+            child: Text(
+              'فخفخة',
+              style: GoogleFonts.lalezar(fontSize: 120, color: Colors.white),
+            ),
+          ),
+          Positioned.fill(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.all(20),
+              child: Center(
+                child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: _gameState!.board.map((p) => _tile(p, small: true)).toList()),
+              ),
+            ),
+          ),
+        ],
+      ));
 
   Widget _controlsUI(List<DominoPiece> hand, bool t) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
-      decoration: BoxDecoration(color: t ? const Color(0xFFE8F5E9) : Colors.white, borderRadius: const BorderRadius.vertical(top: Radius.circular(40)), border: const Border(top: BorderSide(width: 4))),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E2A38),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 20, spreadRadius: 5)],
+        border: Border(top: BorderSide(color: t ? Colors.amberAccent : Colors.white12, width: 3))
+      ),
       child: Column(children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(t ? 'دورك يا بطل 🔥' : 'انتظر دورك...', style: GoogleFonts.lalezar(fontSize: 22, color: t ? Colors.green[800] : Colors.grey)),
-          if (!_vsAI) Text('كود: ${_roomId}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))
+          Text(t ? 'دورك يا بطل 🔥' : 'انتظر دورك...', style: GoogleFonts.lalezar(fontSize: 18, color: t ? Colors.amber : Colors.grey)),
+          if (!_vsAI) Text('كود الغرفة: ${_roomId}', style: const TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.bold))
         ]),
-        const SizedBox(height: 15),
+        const SizedBox(height: 10),
         // Wrap for pieces
         Wrap(
-          spacing: 2,
+          spacing: 6,
           runSpacing: 8,
           alignment: WrapAlignment.center,
-          children: hand.map((p) => GestureDetector(onTap: t ? () => _onPieceTap(p) : null, child: _tile(p))).toList(),
+          children: hand.map((p) => GestureDetector(
+            onTap: t ? () => _onPieceTap(p) : null,
+            child: MouseRegion(cursor: t ? SystemMouseCursors.click : SystemMouseCursors.basic, child: _tile(p, isInteractive: t, vertical: true))
+          )).toList(),
         ),
-        const SizedBox(height: 20),
-        if (t) ElevatedButton(onPressed: () => _gameService.passTurn(_roomId!, _gameState!), style: ElevatedButton.styleFrom(backgroundColor: Colors.orange[700], shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: const BorderSide(width: 2))), child: Text('تمرير الدور', style: GoogleFonts.lalezar(color: Colors.white, fontSize: 18))),
+        if (t) ...[
+          const SizedBox(height: 12),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            child: ElevatedButton(
+              onPressed: () => _gameService.passTurn(_roomId!, _gameState!),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                backgroundColor: const Color(0xFFD32F2F),
+                elevation: 4,
+                shadowColor: Colors.redAccent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+              child: Text('تمرير الدور', style: GoogleFonts.lalezar(color: Colors.white, fontSize: 16))
+            ),
+          )
+        ],
       ]),
     );
   }
 
   void _onPieceTap(DominoPiece p) {
+    AudioService.playClick();
     if (_gameState?.board.isEmpty ?? true) {
       _move(p, true);
     } else {
@@ -547,8 +768,9 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
       showDialog(
           context: context,
           builder: (context) => AlertDialog(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: const BorderSide(width: 3)),
-                  title: Text('وين تخلي القطعة؟', textAlign: TextAlign.center, style: GoogleFonts.lalezar()),
+                  backgroundColor: const Color(0xFF1E2A38),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24), side: const BorderSide(color: Colors.white24, width: 2)),
+                  title: Text('وين تخلي القطعة؟', textAlign: TextAlign.center, style: GoogleFonts.lalezar(color: Colors.white)),
                   actions: [
                     _dialogBtn('البداية', () { Navigator.pop(context); _move(p, false); }),
                     _dialogBtn('النهاية', () { Navigator.pop(context); _move(p, true); }),
@@ -558,7 +780,7 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
     }
   }
 
-  Widget _dialogBtn(String t, VoidCallback o) => ElevatedButton(onPressed: o, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A1A2E)), child: Text(t, style: GoogleFonts.lalezar(color: Colors.white)));
+  Widget _dialogBtn(String t, VoidCallback o) => ElevatedButton(onPressed: o, style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))), child: Text(t, style: GoogleFonts.lalezar(color: Colors.white, fontSize: 18)));
 
   void _move(DominoPiece p, bool e) async {
     try {
@@ -568,16 +790,37 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
     }
   }
 
-  Widget _tile(DominoPiece p, {bool small = false}) {
-    final size = small ? 35.0 : 52.0;
-    return Container(
-      margin: const EdgeInsets.all(3), width: size, height: size * 2,
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(width: small ? 2 : 3), boxShadow: [BoxShadow(color: const Color(0xFF1A1A1A).withOpacity(0.5), offset: const Offset(2, 2))]),
-      child: Column(children: [
-        Expanded(child: _dots(p.side1, small)),
-        Container(height: small ? 2 : 3, color: const Color(0xFF1A1A1A)),
-        Expanded(child: _dots(p.side2, small))
-      ]),
+  Widget _tile(DominoPiece p, {bool small = false, bool isInteractive = false, bool vertical = false}) {
+    final size = small ? 45.0 : 54.0;
+    final double w = vertical ? size : size * 2;
+    final double h = vertical ? size * 2 : size;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.all(4), 
+      width: w, 
+      height: h,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9F9F9),
+        borderRadius: BorderRadius.circular(small ? 8 : 12),
+        border: Border.all(color: isInteractive ? Colors.amber : Colors.black87, width: isInteractive ? 3 : (small ? 1 : 2)),
+        boxShadow: [
+          if (isInteractive) const BoxShadow(color: Colors.amber, blurRadius: 10, spreadRadius: 1),
+          const BoxShadow(color: Colors.black45, offset: Offset(2, 4), blurRadius: 4)
+        ],
+        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Colors.white, Color(0xFFE0E0E0)])
+      ),
+      child: vertical
+          ? Column(children: [
+              Expanded(child: _dots(p.side1, small)),
+              Container(height: small ? 1.5 : 2, color: Colors.black45, margin: EdgeInsets.symmetric(horizontal: small ? 4 : 8)),
+              Expanded(child: _dots(p.side2, small))
+            ])
+          : Row(children: [
+              Expanded(child: _dots(p.side1, small)),
+              Container(width: small ? 1.5 : 2, color: Colors.black45, margin: EdgeInsets.symmetric(vertical: small ? 4 : 8)),
+              Expanded(child: _dots(p.side2, small))
+            ]),
     );
   }
 
@@ -611,12 +854,6 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
     return 'player3';
   }
 
-  String _getPartnerName(String r) => _getName(_getPartnerRole(r));
-  String _getLeftOpponentName(String r) => _getName(_getLeftRole(r));
-  String _getRightOpponentName(String r) => _getName(_getRightRole(r));
-  int _getPartnerHandCount(String r) => _getCount(_getPartnerRole(r));
-  int _getLeftOpponentHandCount(String r) => _getCount(_getLeftRole(r));
-  int _getRightOpponentHandCount(String r) => _getCount(_getRightRole(r));
   String _getName(String r) {
     if (r == 'player1') return _gameState!.player1Id;
     if (r == 'player2') return _gameState!.player2Id ?? 'لاعب 2';
@@ -640,11 +877,12 @@ class _DotsRenderer extends StatelessWidget {
   const _DotsRenderer({required this.value, required this.small});
   @override
   Widget build(BuildContext context) {
-    final dotSize = small ? 4.0 : 5.8;
+    final dotSize = small ? 6.0 : 9.0;
     final patterns = [[4], [0, 8], [0, 4, 8], [0, 2, 6, 8], [0, 2, 4, 6, 8], [0, 3, 6, 2, 5, 8]];
+    if (value == 0) return const SizedBox();
     final pattern = patterns[value - 1];
-    return SizedBox(width: small ? 24 : 36, height: small ? 24 : 36,
+    return SizedBox(width: small ? 30 : 45, height: small ? 30 : 45,
         child: GridView.builder(physics: const NeverScrollableScrollPhysics(), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3),
-            itemCount: 9, itemBuilder: (context, index) => pattern.contains(index) ? Center(child: Container(width: dotSize, height: dotSize, decoration: const BoxDecoration(color: Color(0xFF1A1A1A), shape: BoxShape.circle))) : const SizedBox()));
+            itemCount: 9, itemBuilder: (context, index) => pattern.contains(index) ? Center(child: Container(width: dotSize, height: dotSize, decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black26, offset: Offset(1,1), blurRadius: 1)]))) : const SizedBox()));
   }
 }

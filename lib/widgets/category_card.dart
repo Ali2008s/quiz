@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../data/services/audio_service.dart';
 
 class CategoryCard extends StatelessWidget {
   final String title;
@@ -20,7 +21,10 @@ class CategoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        AudioService.playClick();
+        onTap();
+      },
       child: Container(
         margin: const EdgeInsets.all(8),
         decoration: BoxDecoration(

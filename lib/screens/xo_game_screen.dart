@@ -6,6 +6,7 @@ import '../data/services/auth_service.dart';
 import '../data/services/xo_game_service.dart';
 import '../data/services/audio_service.dart';
 import '../data/services/point_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'game_win_screen.dart';
 
 class XOGameScreen extends StatefulWidget {
@@ -25,6 +26,8 @@ class _XOGameScreenState extends State<XOGameScreen> {
   XOGameState? _gameState;
   final TextEditingController _joinController = TextEditingController();
   bool _isAutoJoining = false;
+  RealtimeChannel? _presence;
+  Timer? _dcTimer;
 
   void _autoJoin() async {
     if (_playerName == null) return;
@@ -61,6 +64,8 @@ class _XOGameScreenState extends State<XOGameScreen> {
   @override
   void dispose() {
     _gameSub?.cancel();
+    _dcTimer?.cancel();
+    _presence?.unsubscribe();
     _joinController.dispose();
     super.dispose();
   }
@@ -92,8 +97,41 @@ class _XOGameScreenState extends State<XOGameScreen> {
     }
   }
 
+  void _setupPresence(String id) {
+    _presence?.unsubscribe();
+    _presence = Supabase.instance.client.channel('xo_pr_$id');
+    _presence!.onPresenceSync((payload) {
+      if (!mounted || _gameState == null || _gameState!.player2Id == null) return;
+      
+      final List<dynamic> pState = _presence!.presenceState();
+      final users = pState.map((p) => p.payload['u'].toString()).toSet();
+      
+      String opponent = _playerName == _gameState!.player1Id ? _gameState!.player2Id! : _gameState!.player1Id;
+      
+      if (!users.contains(opponent)) {
+        if (!(_dcTimer?.isActive ?? false)) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم فصل اتصال الخصم! الانتظار 10 ثواني...', style: GoogleFonts.lalezar()), backgroundColor: Colors.orange));
+          _dcTimer = Timer(const Duration(seconds: 10), () {
+            if (mounted) {
+               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إغلاق الغرفة لعدم عودة الخصم.', style: GoogleFonts.lalezar()), backgroundColor: Colors.red));
+               _gameService.deleteRoom(id);
+            }
+          });
+        }
+      } else {
+        if (_dcTimer?.isActive ?? false) {
+           _dcTimer?.cancel();
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('عاد الخصم للعب! ✅', style: GoogleFonts.lalezar()), backgroundColor: Colors.green));
+        }
+      }
+    }).subscribe((status, [e]) async {
+      if (status == 'SUBSCRIBED' && _playerName != null) await _presence!.track({'u': _playerName});
+    });
+  }
+
   void _listenToGame(String id) {
     _gameSub?.cancel();
+    _setupPresence(id);
     _gameSub = _gameService.gameStream(id).listen((state) {
       if (!mounted) return;
       if (state == null) {
@@ -148,6 +186,10 @@ class _XOGameScreenState extends State<XOGameScreen> {
 
   void _onTapBoard(int index) {
     if (_gameState == null || _gameState!.winner != null) return;
+    if (_gameState!.player2Id == null) {
+      _showError('انتظر حتى ينضم الخصم!');
+      return;
+    }
     if (_gameState!.board[index] != '') return;
     bool isMyTurn = (_gameState!.player1Id == _playerName && _gameState!.currentTurn == 'player1') || (_gameState!.player2Id == _playerName && _gameState!.currentTurn == 'player2');
     if (!isMyTurn) return;
@@ -251,13 +293,12 @@ class _XOGameScreenState extends State<XOGameScreen> {
           return Stack(
             children: [
               Positioned.fill(
-                child: Opacity(
-                  opacity: 0.05,
+                child: IgnorePointer(
                   child: SingleChildScrollView(
                     physics: const NeverScrollableScrollPhysics(),
                     child: Wrap(
                       spacing: 40, runSpacing: 40,
-                      children: List.generate(100, (index) => const Icon(Icons.grid_3x3, size: 40))
+                      children: List.generate(100, (index) => Icon(Icons.grid_3x3, size: 40, color: Colors.black.withOpacity(0.05)))
                     ),
                   )
                 ),
@@ -314,7 +355,10 @@ class _XOGameScreenState extends State<XOGameScreen> {
 
   Widget _actionButton({required String title, required IconData icon, required Color color, required VoidCallback onTap, bool isLoading = false}) {
     return GestureDetector(
-      onTap: isLoading ? null : onTap,
+      onTap: isLoading ? null : () {
+        AudioService.playClick();
+        onTap();
+      },
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(24), border: Border.all(color: const Color(0xFF1A1A1A), width: 3), boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5))]),
@@ -330,7 +374,10 @@ class _XOGameScreenState extends State<XOGameScreen> {
 
   Widget _buildHeader(String title, {required VoidCallback onBack}) {
     return Padding(padding: const EdgeInsets.all(20), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-      GestureDetector(onTap: onBack, child: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF1A1A1A), width: 2)), child: const Icon(Icons.arrow_back_ios_new_rounded, size: 20))),
+      GestureDetector(onTap: () {
+        AudioService.playClick();
+        onBack();
+      }, child: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF1A1A1A), width: 2)), child: const Icon(Icons.arrow_back_ios_new_rounded, size: 20))),
       Text(title, style: GoogleFonts.lalezar(fontSize: 28, color: const Color(0xFF1A1A2E))),
       const SizedBox(width: 40),
     ]));
@@ -362,7 +409,10 @@ class _XOGameScreenState extends State<XOGameScreen> {
     return Container(padding: const EdgeInsets.all(12), margin: const EdgeInsets.all(15), decoration: BoxDecoration(color: const Color(0xFF1A1A2E), borderRadius: BorderRadius.circular(24), border: Border.all(color: const Color(0xFFFFD700), width: 2)),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('كود الغرفة:', style: GoogleFonts.lalezar(fontSize: 12, color: Colors.white70)), Text(_roomId!, style: GoogleFonts.lalezar(fontSize: 28, color: const Color(0xFFFFD700), letterSpacing: 2))]),
-        ElevatedButton(onPressed: () => Clipboard.setData(ClipboardData(text: _roomId!)), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFD700), foregroundColor: Colors.black), child: Text('نسخ الكود', style: GoogleFonts.lalezar()))
+        ElevatedButton(onPressed: () {
+          AudioService.playClick();
+          Clipboard.setData(ClipboardData(text: _roomId!));
+        }, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFD700), foregroundColor: Colors.black), child: Text('نسخ الكود', style: GoogleFonts.lalezar()))
       ]),
     );
   }
