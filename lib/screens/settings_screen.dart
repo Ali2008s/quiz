@@ -109,7 +109,10 @@ class _SettingsScreenState extends State<SettingsScreen>
                 _dialogBtn(
                   text: 'خروج',
                   color: const Color(0xFFEF5350),
-                  onTap: () => SystemNavigator.pop(),
+                  onTap: () {
+                    AudioService.playClick();
+                    SystemNavigator.pop();
+                  },
                 ),
               ],
             ),

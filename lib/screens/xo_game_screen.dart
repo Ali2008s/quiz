@@ -24,6 +24,28 @@ class _XOGameScreenState extends State<XOGameScreen> {
   StreamSubscription<XOGameState?>? _gameSub;
   XOGameState? _gameState;
   final TextEditingController _joinController = TextEditingController();
+  bool _isAutoJoining = false;
+
+  void _autoJoin() async {
+    if (_playerName == null) return;
+    setState(() => _isAutoJoining = true);
+    try {
+      final roomId = await _gameService.findRandomRoom(_playerName!);
+      if (roomId != null) {
+        _listenToGame(roomId);
+        setState(() => _roomId = roomId);
+      } else {
+        // Create new room if none found
+        final id = await _gameService.createRoom(_playerName!);
+        _listenToGame(id);
+        setState(() => _roomId = id);
+      }
+    } catch (e) {
+      _showError('خطأ في الانضمام التلقائي');
+    } finally {
+      if (mounted) setState(() => _isAutoJoining = false);
+    }
+  }
 
   @override
   void initState() {
@@ -86,6 +108,7 @@ class _XOGameScreenState extends State<XOGameScreen> {
       if (state.winner != null) {
         if (state.winner == _playerName) {
           AudioService.playWin();
+          PointService.recordWin(); // Record win for leaderboard
         } else {
           AudioService.playWrong();
         }
@@ -263,7 +286,15 @@ class _XOGameScreenState extends State<XOGameScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Column(
               children: [
-                _actionButton(title: 'إنشاء غرفة جديدة', icon: Icons.add_rounded, color: const Color(0xFF64B5F6), onTap: _createRoom, isLoading: _isCreating),
+                _actionButton(
+                    title: 'دخول تلقائي (عشوائي)',
+                    icon: Icons.bolt_rounded,
+                    color: const Color(0xFFEF5350),
+                    onTap: _autoJoin,
+                    isLoading: _isAutoJoining),
+                const SizedBox(height: 15),
+                _actionButton(
+                    title: 'إنشاء غرفة جديدة', icon: Icons.add_rounded, color: const Color(0xFF64B5F6), onTap: _createRoom, isLoading: _isCreating),
                 const SizedBox(height: 15),
                 _actionButton(title: 'الانضمام لغرفة', icon: Icons.login_rounded, color: const Color(0xFFFFCC33), onTap: () {
                   showDialog(context: context, builder: (context) => AlertDialog(

@@ -64,6 +64,24 @@ class XOGameService {
     }).eq('id', roomId);
   }
 
+  // Find a random available room or return null
+  Future<String?> findRandomRoom(String playerName) async {
+    final response = await _supabase
+        .from('xo_games')
+        .select('id')
+        .filter('player2_id', 'is', null)
+        .neq('player1_id', playerName)
+        .limit(1)
+        .maybeSingle();
+
+    if (response != null) {
+      final roomId = response['id'] as String;
+      await joinRoom(roomId, playerName);
+      return roomId;
+    }
+    return null;
+  }
+
   // Make a move
   Future<void> makeMove(String roomId, int index, String playerType,
       List<String> newBoard, String? winner) async {

@@ -6,23 +6,23 @@ import 'point_service.dart';
 class AdManagerService {
   static bool _isAdFree = false;
 
-  static String get appId => Platform.isAndroid 
+  static String get appId => !kIsWeb && Platform.isAndroid 
     ? 'ca-app-pub-8410384947331700~5272670916' 
     : 'ca-app-pub-8410384947331700~5272670916';
 
-  static String get bannerAdId => Platform.isAndroid 
+  static String get bannerAdId => !kIsWeb && Platform.isAndroid 
     ? 'ca-app-pub-8410384947331700/4091184281' 
     : 'ca-app-pub-8410384947331700/4091184281';
 
-  static String get interstitialAdId => Platform.isAndroid 
+  static String get interstitialAdId => !kIsWeb && Platform.isAndroid 
     ? 'ca-app-pub-8410384947331700/2778102615' 
     : 'ca-app-pub-8410384947331700/2778102615';
 
-  static String get rewardedAdId => Platform.isAndroid 
+  static String get rewardedAdId => !kIsWeb && Platform.isAndroid 
     ? 'ca-app-pub-8410384947331700/9543088417' 
     : 'ca-app-pub-8410384947331700/9543088417';
 
-  static String get appOpenAdId => Platform.isAndroid 
+  static String get appOpenAdId => !kIsWeb && Platform.isAndroid 
     ? 'ca-app-pub-8410384947331700/9822290010' 
     : 'ca-app-pub-8410384947331700/9822290010';
 
@@ -38,7 +38,7 @@ class AdManagerService {
   }
 
   static void showInterstitial() {
-    if (_isAdFree) return;
+    if (kIsWeb || _isAdFree) return;
     
     InterstitialAd.load(
       adUnitId: interstitialAdId,
@@ -55,6 +55,11 @@ class AdManagerService {
   }
 
   static void showRewarded(Function(int) onReward) {
+    if (kIsWeb) {
+      onReward(10); // Give points for free on web since ads aren't supported
+      return;
+    }
+    
     RewardedAd.load(
       adUnitId: rewardedAdId,
       request: const AdRequest(),

@@ -24,6 +24,28 @@ class _RPSGameScreenState extends State<RPSGameScreen> {
   StreamSubscription<RPSGameState?>? _gameSub;
   RPSGameState? _gameState;
   final TextEditingController _joinController = TextEditingController();
+  bool _isAutoJoining = false;
+
+  void _autoJoin() async {
+    if (_playerName == null) return;
+    setState(() => _isAutoJoining = true);
+    try {
+      final roomId = await _gameService.findRandomRoom(_playerName!);
+      if (roomId != null) {
+        _listenToGame(roomId);
+        setState(() => _roomId = roomId);
+      } else {
+        final id = await _gameService.createRoom(_playerName!);
+        _listenToGame(id);
+        setState(() => _roomId = id);
+      }
+    } catch (e) {
+      _showError('خطأ في الانضمام التلقائي');
+    } finally {
+      if (mounted) setState(() => _isAutoJoining = false);
+    }
+  }
+
   final List<String> _choices = ['حجرة', 'ورقة', 'مقص'];
 
   @override
@@ -229,6 +251,13 @@ class _RPSGameScreenState extends State<RPSGameScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 30),
             child: Column(
               children: [
+                _actionButton(
+                    title: 'دخول تلقائي (عشوائي)',
+                    icon: Icons.bolt_rounded,
+                    color: const Color(0xFFEF5350),
+                    onTap: _autoJoin,
+                    isLoading: _isAutoJoining),
+                const SizedBox(height: 15),
                 _actionButton(
                     title: 'إنشاء غرفة تحدي',
                     subtitle: 'ابدأ المواجهة وشارك الكود',

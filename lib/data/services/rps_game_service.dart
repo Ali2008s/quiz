@@ -64,6 +64,23 @@ class RPSGameService {
     }).eq('id', roomId);
   }
 
+  Future<String?> findRandomRoom(String playerName) async {
+    final response = await _supabase
+        .from('rps_games')
+        .select('id')
+        .filter('player2_id', 'is', null)
+        .neq('player1_id', playerName)
+        .limit(1)
+        .maybeSingle();
+
+    if (response != null) {
+      final roomId = response['id'] as String;
+      await joinRoom(roomId, playerName);
+      return roomId;
+    }
+    return null;
+  }
+
   Future<void> makeChoice(String roomId, String playerName, String choice, RPSGameState currentState) async {
     final isPlayer1 = playerName == currentState.player1Id;
     final updateData = isPlayer1 ? {'player1_choice': choice} : {'player2_choice': choice};

@@ -4,7 +4,6 @@ import 'package:confetti/confetti.dart';
 import 'dart:math';
 import '../data/services/audio_service.dart';
 import '../data/services/ad_manager_service.dart';
-import '../widgets/styled_widgets.dart';
 
 class GameWinScreen extends StatefulWidget {
   final String winnerName;
@@ -49,91 +48,196 @@ class _GameWinScreenState extends State<GameWinScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A2E),
+      backgroundColor: Colors.white,
       body: Stack(
-        alignment: Alignment.topCenter,
         children: [
-          // Background decoration
+          // Background icon pattern (matching LocalGamesScreen)
           Positioned.fill(
             child: Opacity(
-              opacity: 0.1,
-              child: Image.asset('assets/images/logo.png', repeat: ImageRepeat.repeat, scale: 4),
+              opacity: 0.05,
+              child: SingleChildScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                child: Wrap(
+                  spacing: 45,
+                  runSpacing: 45,
+                  children: List.generate(
+                    120,
+                    (i) => Icon(
+                      [
+                        Icons.fingerprint,
+                        Icons.theater_comedy,
+                        Icons.casino,
+                        Icons.history_edu,
+                        Icons.visibility,
+                        Icons.extension_rounded,
+                      ][i % 6],
+                      size: 35,
+                      color: const Color(0xFF1A1A2E),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
           
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 50),
-              // Winner Trophy Icon (using icon for now)
-              Container(
-                padding: const EdgeInsets.all(30),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFFFCC33), width: 4),
-                ),
-                child: const Icon(Icons.emoji_events_rounded, size: 100, color: Color(0xFFFFCC33)),
-              ),
-              const SizedBox(height: 30),
-              Text(
-                'مبروك الفوز!',
-                style: GoogleFonts.lalezar(fontSize: 42, color: Colors.white),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                widget.winnerName,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.lalezar(fontSize: 32, color: const Color(0xFFFFCC33)),
-              ),
-              const SizedBox(height: 30),
-              // Points earned ticket
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4CAF50),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 5))],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.stars_rounded, color: Colors.white, size: 28),
-                    const SizedBox(width: 10),
-                    Text(
-                      '+${widget.pointsEarned} نقطة',
-                      style: GoogleFonts.lalezar(fontSize: 24, color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 60),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    StyledNextButton(
-                      text: 'إعادة اللعب',
-                      onTap: widget.onPlayAgain,
-                      color: const Color(0xFFFFCC33),
-                    ),
-                    const SizedBox(height: 20),
-                    StyledNextButton(
-                      text: 'الرجوع للقائمة',
-                      onTap: widget.onExit,
-                      color: const Color(0xFFEF5350),
+                    // Main Win Card (Using the light blue from the app)
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFACE6FE),
+                        borderRadius: BorderRadius.circular(36),
+                        border: Border.all(color: const Color(0xFF1A1A1A), width: 4),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0xFF81D4FA),
+                            offset: Offset(0, 8),
+                            blurRadius: 0,
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          // Trophy Header
+                          Transform.translate(
+                            offset: const Offset(0, -35),
+                            child: Container(
+                              padding: const EdgeInsets.all(22),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFF1A1A1A), width: 4),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black12,
+                                    offset: Offset(0, 6),
+                                    blurRadius: 4,
+                                  )
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.emoji_events_rounded,
+                                size: 80,
+                                color: Color(0xFFFFCC33),
+                              ),
+                            ),
+                          ),
+                          
+                          Transform.translate(
+                            offset: const Offset(0, -15),
+                            child: Column(
+                              children: [
+                                Text(
+                                  'مبروك الفوز!',
+                                  style: GoogleFonts.lalezar(
+                                    fontSize: 52,
+                                    color: Colors.white,
+                                    shadows: [
+                                      const Shadow(
+                                        color: Color(0xFF1A1A1A),
+                                        offset: Offset(3, 3),
+                                        blurRadius: 0,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1A1A2E),
+                                    borderRadius: BorderRadius.circular(22),
+                                    border: Border.all(color: const Color(0xFFFFCC33), width: 3),
+                                  ),
+                                  child: Text(
+                                    widget.winnerName,
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.lalezar(
+                                      fontSize: 34,
+                                      color: const Color(0xFFFFCC33),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 25),
+                          
+                          // Points Earned Ticket (Using the green from the app)
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 30),
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFA5D6A7),
+                              borderRadius: BorderRadius.circular(28),
+                              border: Border.all(color: const Color(0xFF1A1A1A), width: 3),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0xFF2E7D32),
+                                  offset: Offset(0, 4),
+                                  blurRadius: 0,
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.stars_rounded, color: Colors.white, size: 36),
+                                const SizedBox(width: 14),
+                                Text(
+                                  '+${widget.pointsEarned} نقطة',
+                                  style: GoogleFonts.lalezar(
+                                    fontSize: 32,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 35),
+                          
+                          // Action Buttons
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 25),
+                            child: Column(
+                              children: [
+                                _WinButton(
+                                  text: 'إعادة اللعب',
+                                  onTap: widget.onPlayAgain,
+                                  color: const Color(0xFFFFCC33),
+                                  shadowColor: const Color(0xFFCC9900),
+                                ),
+                                const SizedBox(height: 18),
+                                _WinButton(
+                                  text: 'الرجوع للقائمة',
+                                  onTap: widget.onExit,
+                                  color: const Color(0xFFEF5350),
+                                  shadowColor: const Color(0xFFB71C1C),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
           
           // Confetti!
           ConfettiWidget(
             confettiController: _confettiController,
-            blastDirection: pi / 2, // down
+            blastDirection: pi / 2,
             maxBlastForce: 5,
             minBlastForce: 2,
             emissionFrequency: 0.05,
@@ -143,6 +247,70 @@ class _GameWinScreenState extends State<GameWinScreen> {
             colors: const [Colors.green, Colors.blue, Colors.pink, Colors.orange, Colors.yellow],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Internal Button for Win Screen ───────────────────────────────────────────
+
+class _WinButton extends StatefulWidget {
+  final String text;
+  final VoidCallback onTap;
+  final Color color;
+  final Color shadowColor;
+
+  const _WinButton({
+    required this.text,
+    required this.onTap,
+    required this.color,
+    required this.shadowColor,
+  });
+
+  @override
+  State<_WinButton> createState() => _WinButtonState();
+}
+
+class _WinButtonState extends State<_WinButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        AudioService.playClick();
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 80),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        transform: Matrix4.translationValues(0, _pressed ? 4 : 0, 0),
+        decoration: BoxDecoration(
+          color: widget.color,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: const Color(0xFF1A1A1A), width: 3),
+          boxShadow: _pressed
+              ? []
+              : [
+                  BoxShadow(
+                    color: widget.shadowColor,
+                    offset: const Offset(0, 5),
+                    blurRadius: 0,
+                  ),
+                ],
+        ),
+        child: Text(
+          widget.text,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.lalezar(
+            fontSize: 28,
+            color: const Color(0xFF1A1A2E),
+          ),
+        ),
       ),
     );
   }

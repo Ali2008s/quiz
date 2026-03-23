@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/category_card.dart';
 import 'xo_game_screen.dart';
-import 'mheibes_game_screen.dart';
 import 'rps_game_screen.dart';
+import 'domino_game_screen.dart';
 import '../data/services/auth_service.dart';
-import 'settings_screen.dart';
-import 'point_store_screen.dart';
-import '../data/services/point_service.dart';
 
 class OnlineGamesScreen extends StatefulWidget {
   const OnlineGamesScreen({super.key});
@@ -177,6 +174,13 @@ class _OnlineGamesScreenState extends State<OnlineGamesScreen> {
                     backgroundColor: const Color(0xFFFFB74D),
                     onTap: () => _checkRegistrationAndNavigate(
                         context, const RPSGameScreen()),
+                  ),
+                  CategoryCard(
+                    title: 'دومينو أونلاين',
+                    imagePath: 'assets/images/logo.png', // Changed from domino.png
+                    backgroundColor: const Color(0xFFB39DDB),
+                    onTap: () => _checkRegistrationAndNavigate(
+                        context, const DominoGameScreen()),
                   ),
                 ],
               ),
