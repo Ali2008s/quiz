@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/services/auth_service.dart';
 import '../data/services/rps_game_service.dart';
+import '../data/services/audio_service.dart';
+import '../data/services/point_service.dart';
+import 'game_win_screen.dart';
 
 class RPSGameScreen extends StatefulWidget {
   const RPSGameScreen({super.key});
@@ -76,12 +79,41 @@ class _RPSGameScreenState extends State<RPSGameScreen> {
         if (_roomId != null) _showRoomDeletedDialog();
         return;
       }
+
+      // Point system logic: Check if score changed
+      if (_gameState != null) {
+        bool p1Scored = state.player1Score > _gameState!.player1Score;
+        bool p2Scored = state.player2Score > _gameState!.player2Score;
+        
+        bool isP1 = _playerName == state.player1Id;
+        
+        if ((isP1 && p1Scored) || (!isP1 && p2Scored)) {
+          // I won the round!
+          PointService.addPoints(2);
+          AudioService.playWin();
+          _showWinOverlay();
+        } else if (p1Scored || p2Scored) {
+          // Opponent won
+          AudioService.playWrong();
+        }
+      }
+
       setState(() {
         _gameState = state;
         _isCreating = false;
         _isJoining = false;
       });
     });
+  }
+
+  void _showWinOverlay() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('أحسنت! ربحت نقطتين ✌️', style: GoogleFonts.lalezar()),
+        backgroundColor: const Color(0xFFA5D6A7),
+        duration: const Duration(seconds: 2),
+      )
+    );
   }
 
   void _showRoomDeletedDialog() {
@@ -136,6 +168,7 @@ class _RPSGameScreenState extends State<RPSGameScreen> {
     bool isP1 = _playerName == _gameState!.player1Id;
     if (isP1 && _gameState!.player1Choice != null) return;
     if (!isP1 && _gameState!.player2Choice != null) return;
+    AudioService.playClick();
     _gameService.makeChoice(_roomId!, _playerName!, choice, _gameState!);
   }
 

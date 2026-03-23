@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/services/auth_service.dart';
+import '../data/services/audio_service.dart';
 
 class MheibesGameScreen extends StatefulWidget {
   const MheibesGameScreen({super.key});
@@ -182,6 +183,7 @@ class _MheibesGameScreenState extends State<MheibesGameScreen> {
     return GestureDetector(
       onTap: () {
         if (!isOpponent) {
+          AudioService.playClick();
           setState(() {
             _selectedPlayerIndex = index;
           });
@@ -236,6 +238,7 @@ class _MheibesGameScreenState extends State<MheibesGameScreen> {
       child: GestureDetector(
         onTap: () {
           if (_selectedPlayerIndex != -1) {
+            AudioService.playCorrect();
             // Handle player selection
           }
         },

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../widgets/styled_widgets.dart';
 import '../data/services/ai_service.dart';
 import '../data/services/tts_service.dart';
+import '../data/services/audio_service.dart';
 
 class ChallengeGameScreen extends StatefulWidget {
   final String title;
@@ -74,7 +75,7 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> with TickerPr
 
   void _spinWheel() {
     if (_wheelController.isAnimating) return;
-    // Start fetching while spinning if we don't have one
+    AudioService.playClick();
     _fetchNextTask();
     
     setState(() {

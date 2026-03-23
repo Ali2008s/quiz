@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../widgets/styled_widgets.dart';
 import '../data/services/ai_service.dart';
 import '../data/services/tts_service.dart';
+import '../data/services/audio_service.dart';
+import '../data/services/point_service.dart';
 
 class WrongAnswerGameScreen extends StatefulWidget {
   final List<String> players;
@@ -53,6 +55,7 @@ class _WrongAnswerGameScreenState extends State<WrongAnswerGameScreen> with Tick
 
   void _spinWheel() {
     if (_wheelController.isAnimating) return;
+    AudioService.playClick();
     _fetchNextQuestion();
     setState(() {
       double extraRounds = 4 + _random.nextInt(4).toDouble();
@@ -166,9 +169,14 @@ class _WrongAnswerGameScreenState extends State<WrongAnswerGameScreen> with Tick
         ])),
       const SizedBox(height: 40),
       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        _actionBtn(Icons.close, const Color(0xFFEF9A9A), () { setState(() => _state = GameState.wheel); }),
+        _actionBtn(Icons.close, const Color(0xFFEF9A9A), () { AudioService.playWrong(); setState(() => _state = GameState.wheel); }),
         const SizedBox(width: 40),
-        _actionBtn(Icons.check, const Color(0xFFA5D6A7), () { _scores[_selectedPlayer] = (_scores[_selectedPlayer] ?? 0) + 1; setState(() => _state = GameState.wheel); }),
+        _actionBtn(Icons.check, const Color(0xFFA5D6A7), () { 
+          AudioService.playCorrect(); 
+          _scores[_selectedPlayer] = (_scores[_selectedPlayer] ?? 0) + 1; 
+          PointService.addPoints(2); // Add 2 points for correct wrong answer!
+          setState(() => _state = GameState.wheel); 
+        }),
       ]),
       const SizedBox(height: 40),
       StyledNextButton(text: 'عرض النتيجة', onTap: () => setState(() => _state = GameState.results), color: const Color(0xFFFFCC33)),

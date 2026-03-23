@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'local_games_screen.dart';
 import 'online_games_screen.dart';
+import 'point_store_screen.dart';
+import 'settings_screen.dart';
+import '../data/services/point_service.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -27,6 +30,83 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        toolbarHeight: 70,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Points Badge (Store button)
+            GestureDetector(
+              onTap: () async {
+                await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const PointStoreScreen()));
+                setState(() {}); // Refresh points when returning
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A2E),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFFFCC33), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 5,
+                        offset: Offset(0, 3))
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.stars_rounded,
+                        color: Color(0xFFFFCC33), size: 24),
+                    const SizedBox(width: 8),
+                    FutureBuilder<int>(
+                        future: PointService.getPoints(),
+                        builder: (context, snapshot) {
+                          return Text('${snapshot.data ?? 0}',
+                              style: GoogleFonts.lalezar(
+                                  fontSize: 18, color: Colors.white));
+                        }),
+                  ],
+                ),
+              ),
+            ),
+            // App Title or Central Text
+
+            // Settings Button (Right side)
+            GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SettingsScreen(),
+                ),
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF81D4FA),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFF1A1A1A),
+                    width: 3,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.menu,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
       body: _screens[_selectedIndex],
       bottomNavigationBar: Container(
         margin: const EdgeInsets.fromLTRB(20, 0, 20, 24),

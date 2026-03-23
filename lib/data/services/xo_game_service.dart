@@ -78,4 +78,13 @@ class XOGameService {
   Future<void> deleteRoom(String roomId) async {
     await _supabase.from('xo_games').delete().eq('id', roomId);
   }
+
+  // Reset a room for a new match
+  Future<void> resetRoom(String roomId) async {
+    await _supabase.from('xo_games').update({
+      'board': List.generate(9, (index) => ''),
+      'current_turn': 'player1',
+      'winner': null,
+    }).eq('id', roomId);
+  }
 }

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../widgets/styled_widgets.dart';
 import '../data/services/ai_service.dart';
 import '../data/services/tts_service.dart';
+import '../data/services/audio_service.dart';
 
 class ConfessionsGameScreen extends StatefulWidget {
   final List<String> players;
@@ -173,6 +174,11 @@ class _ConfessionsGameScreenState extends State<ConfessionsGameScreen> with Tick
       Text('كاشف الحقيقة', style: GoogleFonts.lalezar(fontSize: 32, color: const Color(0xFF1A1A2E))),
       const SizedBox(height: 40),
       GestureDetector(onLongPressEnd: (_) {
+        if (isTrue) {
+          AudioService.playCorrect();
+        } else {
+          AudioService.playWrong();
+        }
         showDialog(context: context, builder: (context) => CustomDialog(
           title: isTrue ? 'صادق! ✅' : 'كاذب! ❌',
           message: isTrue ? 'هذا اللاعب يقول الحقيقة' : 'هذا اللاعب يحتاج أن يكون أكثر صراحة!',

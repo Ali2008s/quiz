@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
+import 'app_settings.dart';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:js' as js;
 
@@ -12,6 +13,7 @@ class TTSService {
 
   static Future<void> speak(String text) async {
     if (text.isEmpty) return;
+    if (!AppSettings.ttsEnabled) return; // Respect user setting
 
     if (kIsWeb) {
       // Use built-in browser Web Speech API — no CORS issues

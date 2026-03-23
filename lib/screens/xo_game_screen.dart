@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/services/auth_service.dart';
 import '../data/services/xo_game_service.dart';
+import '../data/services/audio_service.dart';
+import '../data/services/point_service.dart';
+import 'game_win_screen.dart';
 
 class XOGameScreen extends StatefulWidget {
   const XOGameScreen({super.key});
@@ -81,6 +84,11 @@ class _XOGameScreenState extends State<XOGameScreen> {
         _isJoining = false;
       });
       if (state.winner != null) {
+        if (state.winner == _playerName) {
+          AudioService.playWin();
+        } else {
+          AudioService.playWrong();
+        }
         _showWinnerDialog(state.winner!);
       }
     });
@@ -125,6 +133,7 @@ class _XOGameScreenState extends State<XOGameScreen> {
     newBoard[index] = mySymbol;
     final winner = _checkLocalWinner(newBoard);
     final myType = _gameState!.player1Id == _playerName ? 'player1' : 'player2';
+    AudioService.playClick();
     _gameService.makeMove(_roomId!, index, myType, newBoard, winner);
   }
 
@@ -139,17 +148,68 @@ class _XOGameScreenState extends State<XOGameScreen> {
     return null;
   }
 
-  void _showWinnerDialog(String winner) {
-    String msg = winner == 'draw' ? 'تعادل!' : (winner == _playerName ? 'مبروك! أنت الفائز 🎉' : 'حظ أوفر المرة القادمة!');
+  void _resetRoom() {
+    if (_roomId != null) {
+      _gameService.resetRoom(_roomId!);
+    }
+  }
+
+  void _showWinnerDialog(String? winner) {
+    if (winner != null && winner != 'draw') {
+      bool isMe = winner == _playerName;
+      if (isMe) {
+        PointService.addPoints(3); // Reduced from 10 to 3
+      }
+      
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => GameWinScreen(
+            winnerName: isMe ? "أنت الفائز! 🏆" : winner,
+            pointsEarned: isMe ? 3 : 0,
+            onPlayAgain: () {
+              Navigator.pop(context);
+              _resetRoom();
+            },
+            onExit: () => Navigator.popUntil(context, (route) => route.isFirst),
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (winner == 'draw') {
+        PointService.addPoints(1); // 1 point for draw
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => AlertDialog( // Assuming CustomDialog is an AlertDialog or similar
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Text('انتهت اللعبة!', textAlign: TextAlign.center, style: GoogleFonts.lalezar(fontSize: 28)),
-        content: Text(msg, textAlign: TextAlign.center, style: GoogleFonts.lalezar(fontSize: 20)),
+        title: Text(winner == null || winner == 'draw' ? 'تعادل!' : 'انتهت اللعبة', textAlign: TextAlign.center, style: GoogleFonts.lalezar(fontSize: 28)),
+        content: Text(winner == null || winner == 'draw' ? 'لايوجد فائز هذه المرة' : 'الفائز هو: $winner', textAlign: TextAlign.center, style: GoogleFonts.lalezar(fontSize: 20)),
         actions: [
-          Center(child: ElevatedButton(onPressed: () { Navigator.pop(context); _onExit(); }, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF5350), padding: const EdgeInsets.symmetric(horizontal: 40)), child: Text('تمام', style: GoogleFonts.lalezar(color: Colors.white)))),
+          Center(
+            child: Column(
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _resetRoom();
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFA5D6A7), padding: const EdgeInsets.symmetric(horizontal: 40)),
+                  child: Text('إعادة اللعب', style: GoogleFonts.lalezar(color: Colors.white)),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF5350), padding: const EdgeInsets.symmetric(horizontal: 40)),
+                  child: Text('خروج', style: GoogleFonts.lalezar(color: Colors.white)),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

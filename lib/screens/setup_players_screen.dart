@@ -5,6 +5,8 @@ import 'confessions_game_screen.dart';
 import 'challenge_game_screen.dart';
 import 'spy_game_screen.dart';
 import 'wrong_answer_game_screen.dart';
+import 'who_is_game_screen.dart';
+import 'proverb_game_screen.dart';
 
 class SetupPlayersScreen extends StatefulWidget {
   final String title;
@@ -126,6 +128,10 @@ class _SetupPlayersScreenState extends State<SetupPlayersScreen> {
         players: names,
         timeLimitSeconds: _hasTimeLimit ? _spyTimeLimit : 0,
       );
+    } else if (widget.title == 'من هو؟') {
+      gameScreen = WhoIsGameScreen(players: names);
+    } else if (widget.title == 'كمل المثل') {
+      gameScreen = ProverbGameScreen(players: names);
     } else {
       return;
     }

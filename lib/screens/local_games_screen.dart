@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../widgets/category_card.dart';
 import 'setup_players_screen.dart';
 import 'not_a_word_setup_screen.dart';
+import 'settings_screen.dart';
+import 'name_animal_game_screen.dart';
+import 'point_store_screen.dart';
+import '../data/services/point_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LocalGamesScreen extends StatelessWidget {
   const LocalGamesScreen({super.key});
@@ -46,64 +50,13 @@ class LocalGamesScreen extends StatelessWidget {
                 SliverToBoxAdapter(
                   child: Column(
                     children: [
-                      // Custom Header
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF81D4FA),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: const Color(0xFF1A1A1A),
-                                  width: 3,
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.menu,
-                                color: Colors.white,
-                                size: 28,
-                              ),
-                            ),
-                            // Voice Status indicator
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFA5D6A7),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                    color: const Color(0xFF1A1A1A), width: 2),
-                              ),
-                              child: Row(
-                                children: [
-                                  const SizedBox(width: 8),
-                                  const Icon(Icons.mic,
-                                      color: Colors.white, size: 20),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      const SizedBox(height: 20),
                       // Logo
                       Center(
                         child: Image.asset(
                           'assets/images/logo.png',
-                          height: 120,
+                          height: 150,
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'الألعاب المحلية',
-                        style: GoogleFonts.lalezar(
-                            fontSize: 28, color: const Color(0xFF1A1A2E)),
                       ),
                       const SizedBox(height: 10),
                     ],
@@ -160,10 +113,33 @@ class LocalGamesScreen extends StatelessWidget {
                             'assets/images/spy.png', const Color(0xFFB39DDB)),
                       ),
                       CategoryCard(
-                        title: 'قريباً',
-                        imagePath: 'assets/images/logo.png',
-                        backgroundColor: Colors.white,
-                        onTap: () {},
+                        title: 'من هو؟',
+                        imagePath: 'assets/images/who_is.png',
+                        backgroundColor: const Color(0xFFFFB74D),
+                        onTap: () => _navigateToSetup(
+                            context,
+                            'من هو؟',
+                            'assets/images/who_is.png',
+                            const Color(0xFFFFB74D)),
+                      ),
+                      CategoryCard(
+                        title: 'حرف واسم',
+                        imagePath:
+                            'assets/images/logo.png', // Temporary until API resets
+                        backgroundColor: const Color(0xFFA5D6A7),
+                        onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    const NameAnimalGameScreen())),
+                      ),
+                      CategoryCard(
+                        title: 'كمل المثل',
+                        imagePath:
+                            'assets/images/logo.png', // Temporary until API resets
+                        backgroundColor: const Color(0xFFCE93D8),
+                        onTap: () => _navigateToSetup(context, 'كمل المثل',
+                            'assets/images/logo.png', const Color(0xFFCE93D8)),
                       ),
                     ],
                   ),

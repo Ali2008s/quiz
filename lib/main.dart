@@ -2,10 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'screens/splash_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'data/services/app_settings.dart';
+import 'data/services/ad_manager_service.dart';
 
 void main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
+
+    // Load persisted user settings (TTS preference, etc.)
+    await AppSettings.load();
+
+    // Initialize AdMob (with Unity Mediation ready)
+    await AdManagerService.init();
+
     debugPrint('Initializing Supabase...');
     await Supabase.initialize(
       url: 'https://hvbkywxobyfotoivkmyj.supabase.co',
