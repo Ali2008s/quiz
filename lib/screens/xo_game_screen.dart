@@ -101,10 +101,21 @@ class _XOGameScreenState extends State<XOGameScreen> {
     _presence?.unsubscribe();
     _presence = Supabase.instance.client.channel('xo_pr_$id');
     _presence!.onPresenceSync((payload) {
-      if (!mounted || _gameState == null || _gameState!.player2Id == null) return;
+      if (!mounted || _gameState == null) return;
       
       final List<dynamic> pState = _presence!.presenceState();
       final users = pState.map((p) => p.payload['u'].toString()).toSet();
+      
+      // If someone new joined but DB hasn't updated our stream yet, force a fetch
+      if (_gameState!.player2Id == null && users.length > 1) {
+        _gameService.getRoom(id).then((state) {
+          if (mounted && state != null && state.player2Id != null) {
+            setState(() => _gameState = state);
+          }
+        });
+      }
+
+      if (_gameState!.player2Id == null) return;
       
       String opponent = _playerName == _gameState!.player1Id ? _gameState!.player2Id! : _gameState!.player1Id;
       

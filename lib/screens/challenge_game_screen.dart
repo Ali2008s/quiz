@@ -283,19 +283,7 @@ class _ChallengeGameScreenState extends State<ChallengeGameScreen> with TickerPr
                 style: GoogleFonts.lalezar(fontSize: 28, color: const Color(0xFF1A1A2E)),
               ),
               const SizedBox(height: 20),
-              if (!_currentTask.startsWith("لحظة"))
-                GestureDetector(
-                  onTap: () => TTSService.speak(_currentTask),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFD54F),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF1A1A1A), width: 2),
-                    ),
-                    child: const Icon(Icons.volume_up_rounded, color: Color(0xFF1A1A2E), size: 30),
-                  ),
-                ),
+
             ],
           ),
         ),

@@ -148,16 +148,7 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
       children: [
         Text(isSpy ? 'أنت هو:\n الجاسوس 🕵️‍♂️' : 'المكان هو:\n $place', textAlign: TextAlign.center, style: GoogleFonts.lalezar(fontSize: 34, color: const Color(0xFF1A1A2E))),
         const SizedBox(height: 20),
-        GestureDetector(
-          onTap: () {
-            AudioService.playClick();
-            TTSService.speak(isSpy ? 'أنت الجاسوس' : place);
-          },
-          child: Container(
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(color: const Color(0xFF5C6BC0), shape: BoxShape.circle, border: Border.all(color: const Color(0xFF1A1A1A), width: 3)),
-            child: const Icon(Icons.volume_up_rounded, color: Colors.white, size: 36),
-          )),
+
       ],
     );
   }

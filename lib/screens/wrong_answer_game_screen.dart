@@ -158,14 +158,7 @@ class _WrongAnswerGameScreenState extends State<WrongAnswerGameScreen> with Tick
           if (_currentQuestion.startsWith("لحظة")) const Padding(padding: EdgeInsets.only(bottom: 20), child: CircularProgressIndicator(color: Color(0xFFEF9A9A))),
           Text(_currentQuestion, textAlign: TextAlign.center, style: GoogleFonts.lalezar(fontSize: 28, color: const Color(0xFF1A1A2E))),
           const SizedBox(height: 20),
-          if (!_currentQuestion.startsWith("لحظة"))
-            GestureDetector(
-              onTap: () => TTSService.speak(_currentQuestion),
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: const Color(0xFFFFCC33), shape: BoxShape.circle, border: Border.all(color: const Color(0xFF1A1A1A), width: 2)),
-                child: const Icon(Icons.volume_up_rounded, color: Color(0xFF1A1A2E), size: 28),
-              )),
+
         ])),
       const SizedBox(height: 40),
       Row(mainAxisAlignment: MainAxisAlignment.center, children: [

@@ -42,6 +42,16 @@ class XOGameService {
         .map((data) => data.isEmpty ? null : XOGameState.fromJson(data.first));
   }
 
+  // Get current room state manually
+  Future<XOGameState?> getRoom(String roomId) async {
+    final response = await _supabase
+        .from('xo_games')
+        .select()
+        .eq('id', roomId)
+        .maybeSingle();
+    return response == null ? null : XOGameState.fromJson(response);
+  }
+
   // Create a new room
   Future<String> createRoom(String playerName) async {
     final roomId =

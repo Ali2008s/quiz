@@ -159,14 +159,7 @@ class _NotAWordGameScreenState extends State<NotAWordGameScreen> {
           if (_currentPhrase.startsWith("لحظة")) const Padding(padding: EdgeInsets.only(bottom: 20), child: CircularProgressIndicator(color: Color(0xFFA5D6A7))),
           Text(_currentPhrase, textAlign: TextAlign.center, style: GoogleFonts.lalezar(fontSize: 36, color: const Color(0xFF1A1A2E))),
           const SizedBox(height: 20),
-          if (!_currentPhrase.startsWith("لحظة"))
-            GestureDetector(
-              onTap: () => TTSService.speak(_currentPhrase),
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: const Color(0xFF81D4FA), shape: BoxShape.circle, border: Border.all(color: const Color(0xFF1A1A1A), width: 2)),
-                child: const Icon(Icons.volume_up_rounded, color: Color(0xFF1A1A2E), size: 28),
-              )),
+
         ])),
       const SizedBox(height: 40),
       Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [

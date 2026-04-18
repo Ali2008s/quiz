@@ -50,7 +50,8 @@ class _SettingsScreenState extends State<SettingsScreen>
     HapticFeedback.lightImpact();
     AudioService.playClick();
     // Replace with your actual store URL
-    const url = 'https://play.google.com/store/apps/details?id=com.yourapp.quiz';
+    const url =
+        'https://play.google.com/store/apps/details?id=com.yourapp.quiz';
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -137,8 +138,8 @@ class _SettingsScreenState extends State<SettingsScreen>
         ),
         child: Text(
           text,
-          style: GoogleFonts.lalezar(
-              fontSize: 20, color: const Color(0xFF1A1A2E)),
+          style:
+              GoogleFonts.lalezar(fontSize: 20, color: const Color(0xFF1A1A2E)),
         ),
       ),
     );
@@ -181,8 +182,8 @@ class _SettingsScreenState extends State<SettingsScreen>
               children: [
                 // ── Top bar ──
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -229,8 +230,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                     decoration: BoxDecoration(
                       color: const Color(0xFF3DD9EB),
                       borderRadius: BorderRadius.circular(32),
-                      border: Border.all(
-                          color: const Color(0xFF1A1A1A), width: 4),
+                      border:
+                          Border.all(color: const Color(0xFF1A1A1A), width: 4),
                       boxShadow: const [
                         BoxShadow(
                           color: Color(0xFF1A9AAD),
@@ -277,8 +278,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                         // ── TTS Toggle button ──
                         _SettingsButton(
                           label: _ttsEnabled
-                              ? 'إيقاف صوت القراءة'
-                              : 'تشغيل صوت القراءة',
+                              ? 'إيقاف صوت اللعبة'
+                              : 'تشغيل صوت اللعبة',
                           icon: Icon(
                             _ttsEnabled
                                 ? Icons.volume_up_rounded
@@ -297,16 +298,16 @@ class _SettingsScreenState extends State<SettingsScreen>
 
                         const SizedBox(height: 10),
 
-                        // ── Close Game button (red) ──
-                        _SettingsButton(
-                          label: 'إغلاق اللعبة',
-                          icon: const _SandalsIcon(),
-                          color: const Color(0xFFEF5350),
-                          shadowColor: const Color(0xFFB71C1C),
-                          onTap: _closeGame,
-                        ),
+                        // // ── Close Game button (red) ──
+                        // _SettingsButton(
+                        //   label: 'إغلاق اللعبة',
+                        //   icon: const _SandalsIcon(),
+                        //   color: const Color(0xFFEF5350),
+                        //   shadowColor: const Color(0xFFB71C1C),
+                        //   onTap: _closeGame,
+                        // ),
 
-                        const SizedBox(height: 16),
+                        // const SizedBox(height: 16),
                       ],
                     ),
                   ),
@@ -357,8 +358,7 @@ class _SettingsButtonState extends State<_SettingsButton> {
         onTapCancel: () => setState(() => _pressed = false),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 80),
-          transform: Matrix4.translationValues(
-              0, _pressed ? 4 : 0, 0),
+          transform: Matrix4.translationValues(0, _pressed ? 4 : 0, 0),
           decoration: BoxDecoration(
             color: widget.color,
             borderRadius: BorderRadius.circular(22),
@@ -374,8 +374,7 @@ class _SettingsButtonState extends State<_SettingsButton> {
                   ],
           ),
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
                 // Icon box on the left (RTL = visually right)
@@ -385,8 +384,8 @@ class _SettingsButtonState extends State<_SettingsButton> {
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.35),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                        color: const Color(0xFF1A1A1A), width: 2),
+                    border:
+                        Border.all(color: const Color(0xFF1A1A1A), width: 2),
                   ),
                   child: Center(
                     child: Padding(
@@ -425,8 +424,8 @@ class _StarsIcon extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: List.generate(
         3,
-        (i) => const Icon(Icons.star_rounded,
-            color: Color(0xFFFF9800), size: 14),
+        (i) =>
+            const Icon(Icons.star_rounded, color: Color(0xFFFF9800), size: 14),
       ),
     );
   }

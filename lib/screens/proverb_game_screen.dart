@@ -226,19 +226,7 @@ class _ProverbGameScreenState extends State<ProverbGameScreen> {
                               ],
                             ],
                             const SizedBox(height: 30),
-                            if (!_isLoading)
-                              GestureDetector(
-                                onTap: () => TTSService.speak(_isFinished ? _part2 : _part1),
-                                child: Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFCE93D8),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: const Color(0xFF1A1A1A), width: 2),
-                                  ),
-                                  child: const Icon(Icons.volume_up_rounded, color: Color(0xFF1A1A2E), size: 30),
-                                ),
-                              ),
+
                           ],
                         ),
                       ),
