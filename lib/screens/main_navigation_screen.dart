@@ -7,6 +7,8 @@ import 'point_store_screen.dart';
 import 'settings_screen.dart';
 import '../data/services/point_service.dart';
 import '../data/services/audio_service.dart';
+import '../data/services/ad_manager_service.dart';
+import '../widgets/banner_ad_widget.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -23,6 +25,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     const OnlineGamesScreen(),
     const LeaderboardScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AdManagerService.showAppOpenAd();
+    });
+  }
 
   void _onItemTapped(int index) {
     AudioService.playClick();
@@ -115,7 +125,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ],
         ),
       ),
-      body: _screens[_selectedIndex],
+      body: Column(
+        children: [
+          Expanded(child: _screens[_selectedIndex]),
+          const BannerAdWidget(),
+        ],
+      ),
       bottomNavigationBar: SizedBox(
         height: 110,
         child: Center(

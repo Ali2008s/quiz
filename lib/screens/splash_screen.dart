@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'main_navigation_screen.dart';
 import '../data/services/audio_service.dart';
+import '../data/services/ad_manager_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -32,6 +33,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     Future.delayed(const Duration(seconds: 4), () {
       if (mounted) {
+        AdManagerService.showAppOpenAd();
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
         );

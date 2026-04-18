@@ -3,7 +3,8 @@ import 'app_settings.dart';
 
 class AudioService {
   static final AudioPlayer _player = AudioPlayer();
-  static final AudioPlayer _bgmPlayer = AudioPlayer(); // مشغل خاص بالموسيقى في الخلفية
+  static final AudioPlayer _bgmPlayer =
+      AudioPlayer(); // مشغل خاص بالموسيقى في الخلفية
 
   // Initialize and preload if needed
   static Future<void> init() async {
@@ -14,7 +15,8 @@ class AudioService {
     try {
       if (AppSettings.ttsEnabled) {
         await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
-        await _bgmPlayer.play(AssetSource('sounds/muisc.mp3'), volume: 0.15); // مستوى الصوت هادئ 
+        await _bgmPlayer.play(AssetSource('sounds/music.mp3'),
+            volume: 0.15); // مستوى الصوت هادئ
       } else {
         await _bgmPlayer.pause();
       }

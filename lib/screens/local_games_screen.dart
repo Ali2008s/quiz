@@ -123,8 +123,7 @@ class LocalGamesScreen extends StatelessWidget {
                       ),
                       CategoryCard(
                         title: 'حرف واسم',
-                        imagePath:
-                            'assets/images/logo.png', // Temporary until API resets
+                        imagePath: 'assets/images/letter_name.png',
                         backgroundColor: const Color(0xFFA5D6A7),
                         onTap: () => Navigator.push(
                             context,
@@ -134,11 +133,10 @@ class LocalGamesScreen extends StatelessWidget {
                       ),
                       CategoryCard(
                         title: 'كمل المثل',
-                        imagePath:
-                            'assets/images/logo.png', // Temporary until API resets
+                        imagePath: 'assets/images/complete_proverb.png',
                         backgroundColor: const Color(0xFFCE93D8),
                         onTap: () => _navigateToSetup(context, 'كمل المثل',
-                            'assets/images/logo.png', const Color(0xFFCE93D8)),
+                            'assets/images/complete_proverb.png', const Color(0xFFCE93D8)),
                       ),
                     ],
                   ),

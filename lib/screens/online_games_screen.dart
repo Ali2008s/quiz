@@ -179,7 +179,7 @@ class _OnlineGamesScreenState extends State<OnlineGamesScreen> {
                   ),
                   CategoryCard(
                     title: 'دومينو أونلاين',
-                    imagePath: 'assets/images/logo.png', // Changed from domino.png
+                    imagePath: 'assets/images/domino.png',
                     backgroundColor: const Color(0xFFB39DDB),
                     onTap: () => _checkRegistrationAndNavigate(
                         context, const DominoGameScreen()),

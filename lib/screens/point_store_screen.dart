@@ -159,6 +159,20 @@ class _PointStoreScreenState extends State<PointStoreScreen> {
                   ),
                   const SizedBox(height: 15),
                   _buildShopItem(
+                    title: 'عرض ذهبي 🏆',
+                    subtitle: 'إعلان سريع بـ 15 نقطة',
+                    cost: 0,
+                    icon: Icons.bolt_rounded,
+                    color: const Color(0xFFFFCC33),
+                    onTap: () {
+                      AdManagerService.showRewardedInterstitial((points) {
+                        _showSuccess('مبروك! حصلت على $points نقاط مجانية (عرض ذهبي).');
+                        _loadState();
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 15),
+                  _buildShopItem(
                     title: 'ساعة بدون إعلانات',
                     subtitle: 'إلعب 60 دقيقة بلا انقطاع',
                     cost: 10,
