@@ -9,18 +9,23 @@ void main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
 
-    // Load persisted user settings (TTS preference, etc.)
+    // 1. Load persisted user settings
     await AppSettings.load();
 
-    // Initialize AdMob (with Unity Mediation ready)
+    // 2. Initialize AdMob FIRST (قبل Supabase) - لا يحتاج Supabase
     await AdManagerService.init();
 
+    // 3. Initialize Supabase
     debugPrint('Initializing Supabase...');
     await Supabase.initialize(
       url: 'https://hvbkywxobyfotoivkmyj.supabase.co',
       anonKey: 'sb_publishable_akp4yHQ77CxbvqskJouY4A_2NiZQFS3',
     );
     debugPrint('Supabase initialized successfully');
+
+    // 4. بعد Supabase: تحقق من حالة Ad-Free وحمّل AppOpenAd
+    await AdManagerService.postSupabaseInit();
+
   } catch (e) {
     debugPrint('Initialization error: $e');
   }
