@@ -12,20 +12,17 @@ class AdManagerService {
   static bool get isAdFree => _isAdFree;
 
   // ─── Ad Unit IDs (نفس الـ ID لـ Android وiOS في هذا التطبيق) ───────────────
-  static String get bannerAdId =>
-      'ca-app-pub-8410384947331700/1077623036';
+  static String get bannerAdId => 'ca-app-pub-8410384947331700/1077623036';
 
   static String get interstitialAdId =>
       'ca-app-pub-8410384947331700/1883438240';
 
-  static String get rewardedAdId =>
-      'ca-app-pub-8410384947331700/1259562220';
+  static String get rewardedAdId => 'ca-app-pub-8410384947331700/1259562220';
 
   static String get rewardedInterstitialAdId =>
       'ca-app-pub-8410384947331700/7322421005';
 
-  static String get appOpenAdId =>
-      'ca-app-pub-8410384947331700/1851648652';
+  static String get appOpenAdId => 'ca-app-pub-8410384947331700/1851648652';
 
   // ─── تهيئة AdMob ──────────────────────────────────────────────────────────
   static Future<void> init() async {
@@ -34,13 +31,7 @@ class AdManagerService {
 
     try {
       // ✅ أضف Test Device IDs قبل التهيئة (مهم لأجهزة التطوير)
-      MobileAds.instance.updateRequestConfiguration(
-        RequestConfiguration(
-          testDeviceIds: [
-            '2A98B2984FBF6609756DC70AB476AE2C', // TECNO BE8
-          ],
-        ),
-      );
+
       await MobileAds.instance.initialize();
       debugPrint('✅ MobileAds initialized');
     } catch (e) {
@@ -90,7 +81,8 @@ class AdManagerService {
   }
 
   static void showAppOpenAd() {
-    if (kIsWeb || _isAdFree || _isAppOpenAdShowing || _appOpenAd == null) return;
+    if (kIsWeb || _isAdFree || _isAppOpenAdShowing || _appOpenAd == null)
+      return;
 
     _appOpenAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (ad) {
