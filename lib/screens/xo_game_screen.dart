@@ -28,6 +28,7 @@ class _XOGameScreenState extends State<XOGameScreen> {
   bool _isAutoJoining = false;
   RealtimeChannel? _presence;
   Timer? _dcTimer;
+  Timer? _pollTimer;
 
   void _autoJoin() async {
     if (_playerName == null) return;
@@ -63,9 +64,15 @@ class _XOGameScreenState extends State<XOGameScreen> {
 
   @override
   void dispose() {
+    if (_roomId != null && _gameState != null && _gameState!.player1Id == _playerName) {
+      _gameService.deleteRoom(_roomId!);
+    }
     _gameSub?.cancel();
     _dcTimer?.cancel();
-    _presence?.unsubscribe();
+    _pollTimer?.cancel();
+    if (_presence != null) {
+      Supabase.instance.client.removeChannel(_presence!);
+    }
     _joinController.dispose();
     super.dispose();
   }
@@ -98,7 +105,9 @@ class _XOGameScreenState extends State<XOGameScreen> {
   }
 
   void _setupPresence(String id) {
-    _presence?.unsubscribe();
+    if (_presence != null) {
+      Supabase.instance.client.removeChannel(_presence!);
+    }
     _presence = Supabase.instance.client.channel('xo_pr_$id');
     _presence!.onPresenceSync((payload) {
       if (!mounted || _gameState == null) return;
@@ -142,7 +151,40 @@ class _XOGameScreenState extends State<XOGameScreen> {
 
   void _listenToGame(String id) {
     _gameSub?.cancel();
+    _pollTimer?.cancel();
     _setupPresence(id);
+    
+    // Web Fallback/Sync mechanism
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+       if (_roomId == null) return;
+       final state = await _gameService.getRoom(_roomId!);
+       if (state != null) {
+         bool needsUpdate = state.currentTurn != _gameState?.currentTurn || 
+                            state.player2Id != _gameState?.player2Id ||
+                            state.winner != _gameState?.winner;
+         
+         // Also check board differences for robustness
+         if (!needsUpdate && _gameState != null) {
+            for (int i=0; i<9; i++) {
+                if (state.board[i] != _gameState!.board[i]) {
+                    needsUpdate = true;
+                    break;
+                }
+            }
+         }
+
+         if (needsUpdate) {
+           if (mounted) setState(() => _gameState = state);
+           if (state.winner != null) _showWinnerDialog(state.winner!);
+         }
+       } else {
+         if (mounted && _roomId != null && _gameState != null) {
+           _pollTimer?.cancel();
+           _showRoomDeletedDialog();
+         }
+       }
+    });
+
     _gameSub = _gameService.gameStream(id).listen((state) {
       if (!mounted) return;
       if (state == null) {
@@ -163,6 +205,8 @@ class _XOGameScreenState extends State<XOGameScreen> {
         }
         _showWinnerDialog(state.winner!);
       }
+    }, onError: (e) {
+      debugPrint('XO Game Stream Error: $e');
     });
   }
 
@@ -193,6 +237,11 @@ class _XOGameScreenState extends State<XOGameScreen> {
       if (_gameState!.player1Id == _playerName) { await _gameService.deleteRoom(_roomId!); }
     }
     _clearGameState();
+    _pollTimer?.cancel();
+    if (_presence != null) {
+      Supabase.instance.client.removeChannel(_presence!);
+      _presence = null;
+    }
   }
 
   void _onTapBoard(int index) {

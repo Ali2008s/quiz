@@ -12,17 +12,17 @@ class AdManagerService {
   static bool get isAdFree => _isAdFree;
 
   // ─── Ad Unit IDs (نفس الـ ID لـ Android وiOS في هذا التطبيق) ───────────────
-  static String get bannerAdId => 'ca-app-pub-8410384947331700/1077623036';
+  static String get bannerAdId => 'ca-app-pub-8410384947331700/6336321598';
 
   static String get interstitialAdId =>
-      'ca-app-pub-8410384947331700/1883438240';
+      'ca-app-pub-8410384947331700/8358803525';
 
-  static String get rewardedAdId => 'ca-app-pub-8410384947331700/1259562220';
+  static String get rewardedAdId => 'ca-app-pub-8410384947331700/1940734834';
 
   static String get rewardedInterstitialAdId =>
-      'ca-app-pub-8410384947331700/7322421005';
+      'ca-app-pub-8410384947331700/3710158257';
 
-  static String get appOpenAdId => 'ca-app-pub-8410384947331700/1851648652';
+  static String get appOpenAdId => 'ca-app-pub-8410384947331700/5653795316';
 
   // ─── تهيئة AdMob ──────────────────────────────────────────────────────────
   static Future<void> init() async {
@@ -30,7 +30,10 @@ class AdManagerService {
     if (!Platform.isAndroid && !Platform.isIOS) return;
 
     try {
-      // ✅ أضف Test Device IDs قبل التهيئة (مهم لأجهزة التطوير)
+      // ✅ إضافة المعرف كجهاز اختبار كما ظهر في سجلات الهاتف
+      RequestConfiguration configuration = RequestConfiguration(
+          testDeviceIds: ["2A98B2984FBF6609756DC70AB476AE2C"]);
+      await MobileAds.instance.updateRequestConfiguration(configuration);
 
       await MobileAds.instance.initialize();
       debugPrint('✅ MobileAds initialized');

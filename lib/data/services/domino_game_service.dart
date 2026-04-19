@@ -222,15 +222,6 @@ class DominoGameService {
       'player2_hand': hands['player2']!.map((e) => e.toJson()).toList(),
       'player3_hand': hands['player3']!.map((e) => e.toJson()).toList(),
       'player4_hand': hands['player4']!.map((e) => e.toJson()).toList(),
-    }).eq('id', roomId);
-
-    // Actually simpler fix for the update:
-    await _supabase.from('domino_games').update({
-      'board': newBoard.map((e) => e.toJson()).toList(),
-      'player1_hand': hands['player1']!.map((e) => e.toJson()).toList(),
-      'player2_hand': hands['player2']!.map((e) => e.toJson()).toList(),
-      'player3_hand': hands['player3']!.map((e) => e.toJson()).toList(),
-      'player4_hand': hands['player4']!.map((e) => e.toJson()).toList(),
       'current_turn': nextTurn,
       'winner': winner,
     }).eq('id', roomId);

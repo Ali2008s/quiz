@@ -47,6 +47,14 @@ class RPSGameService {
         .map((data) => data.isEmpty ? null : RPSGameState.fromJson(data.first));
   }
 
+  Future<RPSGameState?> getRoom(String roomId) async {
+    final response = await _supabase.from('rps_games').select().eq('id', roomId).maybeSingle();
+    if (response != null) {
+      return RPSGameState.fromJson(response);
+    }
+    return null;
+  }
+
   Future<String> createRoom(String playerName) async {
     final roomId = (1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString();
     await _supabase.from('rps_games').insert({

@@ -15,7 +15,7 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
   int _retryCount = 0;
-  static const int _maxRetries = 3; // أقصى 3 محاولات
+  static const int _maxRetries = 5; // أقصى 5 محاولات
 
   @override
   void initState() {
@@ -54,10 +54,10 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
               _isLoaded = false;
             });
           }
-          // أعد المحاولة بعد 5 دقائق بحد أقصى 3 محاولات
+          // أعد المحاولة بعد 30 ثانية بحد أقصى 5 محاولات
           if (_retryCount < _maxRetries) {
             _retryCount++;
-            Future.delayed(const Duration(minutes: 5), () {
+            Future.delayed(const Duration(seconds: 30), () {
               if (mounted) _loadAd();
             });
           } else {

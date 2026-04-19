@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/services/auth_service.dart';
 import '../data/services/domino_game_service.dart';
 import '../data/services/audio_service.dart';
+import '../data/services/point_service.dart';
 import 'game_win_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -45,10 +46,15 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
 
   @override
   void dispose() {
+    if (_roomId != null && _gameState != null && _gameState!.player1Id == _playerName) {
+      _gameService.deleteRoom(_roomId!);
+    }
     _gameSub?.cancel();
     _pollTimer?.cancel();
     _dcTimer?.cancel();
-    _presence?.unsubscribe();
+    if (_presence != null) {
+      Supabase.instance.client.removeChannel(_presence!);
+    }
     _joinController.dispose();
     super.dispose();
   }
@@ -219,7 +225,9 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
   }
 
   void _setupPresence(String id) {
-    _presence?.unsubscribe();
+    if (_presence != null) {
+      Supabase.instance.client.removeChannel(_presence!);
+    }
     _presence = Supabase.instance.client.channel('domino_pr_$id');
     _presence!.onPresenceSync((payload) {
       if (!mounted || _gameState == null || _vsAI) return;
@@ -270,18 +278,39 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
     _pollTimer?.cancel();
     _setupPresence(id);
     
-    // Web Fallback: Poll every 2 seconds
+    // Web Fallback/Sync mechanism
     _pollTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
        if (_roomId == null) return;
        final state = await _gameService.getGameData(_roomId!);
-       if (state != null && state.currentTurn != _gameState?.currentTurn) {
-         if (mounted) setState(() => _gameState = state);
-         _checkAIMove(state);
+       if (state != null) {
+         bool needsUpdate = state.currentTurn != _gameState?.currentTurn || 
+                            state.player2Id != _gameState?.player2Id ||
+                            state.player3Id != _gameState?.player3Id ||
+                            state.player4Id != _gameState?.player4Id ||
+                            state.winner != _gameState?.winner;
+                            
+         if (needsUpdate) {
+           if (mounted) setState(() => _gameState = state);
+           if (state.winner != null) _handleWinner(state.winner!);
+           else _checkAIMove(state);
+         }
+       } else {
+         if (mounted && _roomId != null && _gameState != null) {
+           _pollTimer?.cancel();
+           _showRoomDeletedDialog();
+         }
        }
     });
 
     _gameSub = _gameService.gameStream(id).listen((state) {
-      if (!mounted || state == null) return;
+      if (!mounted) return;
+      if (state == null) {
+        if (_roomId != null && _gameState != null) {
+          _pollTimer?.cancel();
+          _showRoomDeletedDialog();
+        }
+        return;
+      }
       setState(() {
         _gameState = state;
         _isCreating = false;
@@ -289,6 +318,8 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
       });
       if (state.winner != null) _handleWinner(state.winner!);
       _checkAIMove(state);
+    }, onError: (e) {
+      debugPrint('Domino Game Stream Error: $e');
     });
   }
 
@@ -344,6 +375,9 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
   }
 
   void _handleWinner(String winner) {
+    if (winner != 'ذكاء اصطناعي 🤖' && winner != 'الخصم' && !winner.contains('الفريق الثاني')) {
+        PointService.addPoints(5);
+    }
     Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -439,28 +473,30 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
   }
 
   Widget _buildMenu() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(children: [
-        const SizedBox(height: 30),
-        _header('لعبة الدومينو', Icons.extension_rounded, Colors.white),
-        const SizedBox(height: 40),
-        _menuBox('اللعب الجماعي', 'أدخل الغرفة ونافس أساطير الدومينو', const Color(0xFF64B5F6), Icons.public, () {
-          setState(() => _vsAI = false);
-          _showGameSetup();
-        }),
-        const SizedBox(height: 20),
-        _menuBox('اللعب الفردي', 'تحدَّ الذكاء الاصطناعي وحدد الصعوبة', const Color(0xFFFF8A65), Icons.android_rounded, () {
-          setState(() {
-            _vsAI = true;
-            _playerCount = 2;
-          });
-          _showGameSetup();
-        }),
-        const Spacer(),
-        _joinCardUI(),
-        const SizedBox(height: 30),
-      ]),
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(children: [
+          const SizedBox(height: 30),
+          _header('لعبة الدومينو', Icons.extension_rounded, Colors.white),
+          const SizedBox(height: 40),
+          _menuBox('اللعب الجماعي', 'أدخل الغرفة ونافس أساطير الدومينو', const Color(0xFF64B5F6), Icons.public, () {
+            setState(() => _vsAI = false);
+            _showGameSetup();
+          }),
+          const SizedBox(height: 20),
+          _menuBox('اللعب الفردي', 'تحدَّ الذكاء الاصطناعي وحدد الصعوبة', const Color(0xFFFF8A65), Icons.android_rounded, () {
+            setState(() {
+              _vsAI = true;
+              _playerCount = 2;
+            });
+            _showGameSetup();
+          }),
+          const SizedBox(height: 40),
+          _joinCardUI(),
+          const SizedBox(height: 30),
+        ]),
+      ),
     );
   }
 
@@ -521,11 +557,7 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
       ]);
 
   Widget _buildGame() {
-    final myName = _playerName?.trim();
-    String myRole = 'player1';
-    if (myName == _gameState!.player2Id?.trim()) myRole = 'player2';
-    else if (myName == _gameState!.player3Id?.trim()) myRole = 'player3';
-    else if (myName == _gameState!.player4Id?.trim()) myRole = 'player4';
+    String myRole = _getMyRole();
 
     final myHand = _getMyHand(myRole);
     bool isMyTurn = _gameState!.currentTurn == myRole;
@@ -664,7 +696,11 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
       decoration: BoxDecoration(color: isTurn ? Colors.white24 : Colors.black45, borderRadius: BorderRadius.circular(12)),
       child: Text('$c', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)));
 
-  Widget _boardUI() => Container(
+  Widget _boardUI() {
+    bool isMyTurn = _gameState!.currentTurn == _getMyRole();
+    bool canPlay = isMyTurn && _gameState!.winner == null;
+
+    return Container(
       margin: const EdgeInsets.all(10),
       width: double.infinity,
       decoration: BoxDecoration(
@@ -685,18 +721,74 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
             ),
           ),
           Positioned.fill(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.all(20),
-              child: Center(
+            child: InteractiveViewer(
+              boundaryMargin: const EdgeInsets.all(1000),
+              minScale: 0.1,
+              maxScale: 3.0,
+              constrained: false,
+              child: Container(
+                padding: const EdgeInsets.all(100),
                 child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: _gameState!.board.map((p) => _tile(p, small: true)).toList()),
+                    children: _buildBoardItems(canPlay)),
               ),
             ),
           ),
         ],
       ));
+  }
+
+  List<Widget> _buildBoardItems(bool canPlay) {
+    if (_gameState == null) return [];
+    List<Widget> items = [];
+    if (_gameState!.board.isEmpty) {
+      if (canPlay) items.add(_buildTarget(true));
+    } else {
+      if (canPlay) items.add(_buildTarget(false));
+      for (var p in _gameState!.board) {
+        items.add(_tile(p, small: true, vertical: false));
+      }
+      if (canPlay) items.add(_buildTarget(true));
+    }
+    return items;
+  }
+
+  Widget _buildTarget(bool isEnd) {
+    return DragTarget<DominoPiece>(
+      onWillAccept: (piece) {
+         if (piece == null) return false;
+         if (_gameState!.board.isEmpty) return true;
+         int targetVal = isEnd ? _gameState!.board.last.side2 : _gameState!.board.first.side1;
+         return piece.side1 == targetVal || piece.side2 == targetVal;
+      },
+      onAccept: (piece) {
+         _onDropPiece(piece, isEnd);
+      },
+      builder: (context, candidateData, rejectedData) {
+         bool isHovered = candidateData.isNotEmpty;
+         return AnimatedContainer(
+           duration: const Duration(milliseconds: 200),
+           margin: const EdgeInsets.all(6),
+           width: 90,
+           height: 45,
+           decoration: BoxDecoration(
+             color: isHovered ? Colors.green.withOpacity(0.5) : Colors.green.withOpacity(0.15),
+             borderRadius: BorderRadius.circular(12),
+             border: Border.all(color: isHovered ? Colors.greenAccent : Colors.green.withOpacity(0.6), width: isHovered ? 4 : 2),
+             boxShadow: isHovered ? [const BoxShadow(color: Colors.greenAccent, blurRadius: 15, spreadRadius: 4)] : [],
+           ),
+           child: Center(
+             child: Icon(Icons.add_box_rounded, color: isHovered ? Colors.white : Colors.white70, size: isHovered ? 36 : 28),
+           )
+         );
+      }
+    );
+  }
+
+  void _onDropPiece(DominoPiece piece, bool isEnd) {
+    AudioService.playClick();
+    _move(piece, isEnd);
+  }
 
   Widget _controlsUI(List<DominoPiece> hand, bool t) {
     return Container(
@@ -718,10 +810,19 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
           spacing: 6,
           runSpacing: 8,
           alignment: WrapAlignment.center,
-          children: hand.map((p) => GestureDetector(
-            onTap: t ? () => _onPieceTap(p) : null,
-            child: MouseRegion(cursor: t ? SystemMouseCursors.click : SystemMouseCursors.basic, child: _tile(p, isInteractive: t, vertical: true))
-          )).toList(),
+          children: hand.map((p) => t 
+            ? Draggable<DominoPiece>(
+                data: p,
+                feedback: Transform.scale(
+                  scale: 1.1,
+                  child: _tile(p, isInteractive: true, vertical: true),
+                ),
+                childWhenDragging: Opacity(opacity: 0.3, child: _tile(p, isInteractive: false, vertical: true)),
+                onDragStarted: () => AudioService.playClick(),
+                child: MouseRegion(cursor: SystemMouseCursors.grab, child: _tile(p, isInteractive: true, vertical: true))
+              )
+            : _tile(p, isInteractive: false, vertical: true)
+          ).toList(),
         ),
         if (t) ...[
           const SizedBox(height: 12),
@@ -831,6 +932,14 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
     if (r == 'player2') return _gameState!.player2Hand;
     if (r == 'player3') return _gameState!.player3Hand;
     return _gameState!.player4Hand;
+  }
+
+  String _getMyRole() {
+    final myName = _playerName?.trim();
+    if (myName == _gameState?.player2Id?.trim()) return 'player2';
+    if (myName == _gameState?.player3Id?.trim()) return 'player3';
+    if (myName == _gameState?.player4Id?.trim()) return 'player4';
+    return 'player1';
   }
 
   String _getPartnerRole(String r) {

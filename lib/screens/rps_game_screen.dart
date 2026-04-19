@@ -28,6 +28,7 @@ class _RPSGameScreenState extends State<RPSGameScreen> {
   bool _isAutoJoining = false;
   RealtimeChannel? _presence;
   Timer? _dcTimer;
+  Timer? _pollTimer;
 
   void _autoJoin() async {
     AudioService.playClick();
@@ -65,9 +66,15 @@ class _RPSGameScreenState extends State<RPSGameScreen> {
 
   @override
   void dispose() {
+    if (_roomId != null && _gameState != null && _gameState!.player1Id == _playerName) {
+      _gameService.deleteRoom(_roomId!);
+    }
     _gameSub?.cancel();
     _dcTimer?.cancel();
-    _presence?.unsubscribe();
+    _pollTimer?.cancel();
+    if (_presence != null) {
+      Supabase.instance.client.removeChannel(_presence!);
+    }
     _joinController.dispose();
     super.dispose();
   }
@@ -101,13 +108,25 @@ class _RPSGameScreenState extends State<RPSGameScreen> {
   }
 
   void _setupPresence(String id) {
-    _presence?.unsubscribe();
+    if (_presence != null) {
+      Supabase.instance.client.removeChannel(_presence!);
+    }
     _presence = Supabase.instance.client.channel('rps_pr_$id');
     _presence!.onPresenceSync((payload) {
-      if (!mounted || _gameState == null || _gameState!.player2Id == null) return;
+      if (!mounted || _gameState == null) return;
       
       final List<dynamic> pState = _presence!.presenceState();
       final users = pState.map((p) => p.payload['u'].toString()).toSet();
+      
+      if (_gameState!.player2Id == null && users.length > 1) {
+        _gameService.getRoom(id).then((state) {
+          if (mounted && state != null && state.player2Id != null) {
+            setState(() => _gameState = state);
+          }
+        });
+      }
+
+      if (_gameState!.player2Id == null) return;
       
       String opponent = _playerName == _gameState!.player1Id ? _gameState!.player2Id! : _gameState!.player1Id;
       
@@ -134,38 +153,65 @@ class _RPSGameScreenState extends State<RPSGameScreen> {
 
   void _listenToGame(String id) {
     _gameSub?.cancel();
+    _pollTimer?.cancel();
     _setupPresence(id);
+    
+    // Web Fallback/Sync mechanism
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+       if (_roomId == null) return;
+       final state = await _gameService.getRoom(_roomId!);
+       if (state != null) {
+         bool needsUpdate = state.player2Id != _gameState?.player2Id ||
+                            state.player1Choice != _gameState?.player1Choice ||
+                            state.player2Choice != _gameState?.player2Choice ||
+                            state.roundWinner != _gameState?.roundWinner ||
+                            state.player1Score != _gameState?.player1Score ||
+                            state.player2Score != _gameState?.player2Score;
+         
+         if (needsUpdate) {
+           _processStateScoreSync(state);
+           if (mounted) setState(() => _gameState = state);
+         }
+       } else {
+         if (mounted && _roomId != null && _gameState != null) {
+           _pollTimer?.cancel();
+           _showRoomDeletedDialog();
+         }
+       }
+    });
+
     _gameSub = _gameService.gameStream(id).listen((state) {
       if (!mounted) return;
       if (state == null) {
         if (_roomId != null) _showRoomDeletedDialog();
         return;
       }
-
-      // Point system logic: Check if score changed
-      if (_gameState != null) {
-        bool p1Scored = state.player1Score > _gameState!.player1Score;
-        bool p2Scored = state.player2Score > _gameState!.player2Score;
-        
-        bool isP1 = _playerName == state.player1Id;
-        
-        if ((isP1 && p1Scored) || (!isP1 && p2Scored)) {
-          // I won the round!
-          PointService.addPoints(2);
-          AudioService.playWin();
-          _showWinOverlay();
-        } else if (p1Scored || p2Scored) {
-          // Opponent won
-          AudioService.playWrong();
-        }
-      }
-
+      _processStateScoreSync(state);
       setState(() {
         _gameState = state;
         _isCreating = false;
         _isJoining = false;
       });
+    }, onError: (e) {
+      debugPrint('RPS Game Stream Error: $e');
     });
+  }
+
+  void _processStateScoreSync(RPSGameState state) {
+    if (_gameState != null) {
+      bool p1Scored = state.player1Score > _gameState!.player1Score;
+      bool p2Scored = state.player2Score > _gameState!.player2Score;
+      
+      bool isP1 = _playerName == state.player1Id;
+      
+      if ((isP1 && p1Scored) || (!isP1 && p2Scored)) {
+        PointService.addPoints(2);
+        AudioService.playWin();
+        _showWinOverlay();
+      } else if (p1Scored || p2Scored) {
+        AudioService.playWrong();
+      }
+    }
   }
 
   void _showWinOverlay() {
@@ -214,6 +260,10 @@ class _RPSGameScreenState extends State<RPSGameScreen> {
         _isJoining = false;
       });
       _gameSub?.cancel();
+      if (_presence != null) {
+        Supabase.instance.client.removeChannel(_presence!);
+        _presence = null;
+      }
     }
   }
 
@@ -417,9 +467,12 @@ class _RPSGameScreenState extends State<RPSGameScreen> {
                           Border.all(color: const Color(0xFF1A1A1A), width: 2)),
                   child:
                       const Icon(Icons.arrow_back_ios_new_rounded, size: 20))),
-          Text(title,
-              style: GoogleFonts.lalezar(
-                  fontSize: 28, color: const Color(0xFF1A1A2E))),
+          Flexible(
+            child: Text(title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.lalezar(
+                    fontSize: 28, color: const Color(0xFF1A1A2E))),
+          ),
           const SizedBox(width: 40),
         ],
       ),
