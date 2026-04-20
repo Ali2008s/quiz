@@ -35,11 +35,43 @@ class XOGameService {
 
   // Stream to listen to game changes
   Stream<XOGameState?> gameStream(String roomId) {
-    return _supabase
-        .from('xo_games')
-        .stream(primaryKey: ['id'])
-        .eq('id', roomId)
-        .map((data) => data.isEmpty ? null : XOGameState.fromJson(data.first));
+    late StreamController<XOGameState?> controller;
+    RealtimeChannel? channel;
+
+    void subscribe() {
+      channel = _supabase.channel('xo_game_$roomId');
+      channel!
+          .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'xo_games',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'id',
+              value: roomId,
+            ),
+            callback: (payload) {
+              if (!controller.isClosed) {
+                try {
+                  controller.add(XOGameState.fromJson(payload.newRecord));
+                } catch (_) {}
+              }
+            },
+          )
+          .subscribe();
+    }
+
+    controller = StreamController<XOGameState?>.broadcast(
+      onListen: subscribe,
+      onCancel: () {
+        if (channel != null) {
+          _supabase.removeChannel(channel!);
+          channel = null;
+        }
+      },
+    );
+
+    return controller.stream;
   }
 
   // Get current room state manually

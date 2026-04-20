@@ -40,11 +40,43 @@ class RPSGameService {
   final _supabase = Supabase.instance.client;
 
   Stream<RPSGameState?> gameStream(String roomId) {
-    return _supabase
-        .from('rps_games')
-        .stream(primaryKey: ['id'])
-        .eq('id', roomId)
-        .map((data) => data.isEmpty ? null : RPSGameState.fromJson(data.first));
+    late StreamController<RPSGameState?> controller;
+    RealtimeChannel? channel;
+
+    void subscribe() {
+      channel = _supabase.channel('rps_game_$roomId');
+      channel!
+          .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'rps_games',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'id',
+              value: roomId,
+            ),
+            callback: (payload) {
+              if (!controller.isClosed) {
+                try {
+                  controller.add(RPSGameState.fromJson(payload.newRecord));
+                } catch (_) {}
+              }
+            },
+          )
+          .subscribe();
+    }
+
+    controller = StreamController<RPSGameState?>.broadcast(
+      onListen: subscribe,
+      onCancel: () {
+        if (channel != null) {
+          _supabase.removeChannel(channel!);
+          channel = null;
+        }
+      },
+    );
+
+    return controller.stream;
   }
 
   Future<RPSGameState?> getRoom(String roomId) async {

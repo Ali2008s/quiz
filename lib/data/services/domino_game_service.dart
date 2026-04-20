@@ -87,12 +87,48 @@ class DominoGameService {
   final _supabase = Supabase.instance.client;
 
   Stream<DominoGameState?> gameStream(String roomId) {
-    return _supabase
-        .from('domino_games')
-        .stream(primaryKey: ['id'])
-        .eq('id', roomId)
-        .map((data) =>
-            data.isEmpty ? null : DominoGameState.fromJson(data.first));
+    // Use a StreamController backed by postgres_changes for low-latency updates.
+    // This avoids the RealtimeSubscribeStatus.timedOut error from .stream().
+    late StreamController<DominoGameState?> controller;
+    RealtimeChannel? channel;
+
+    void subscribe() {
+      channel = _supabase.channel('domino_game_$roomId');
+      channel!
+          .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'domino_games',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'id',
+              value: roomId,
+            ),
+            callback: (payload) {
+              if (!controller.isClosed) {
+                try {
+                  final state = DominoGameState.fromJson(payload.newRecord);
+                  controller.add(state);
+                } catch (_) {}
+              }
+            },
+          )
+          .subscribe((status, [err]) {
+        debugPrint('Domino Realtime status: $status');
+      });
+    }
+
+    controller = StreamController<DominoGameState?>.broadcast(
+      onListen: subscribe,
+      onCancel: () {
+        if (channel != null) {
+          _supabase.removeChannel(channel!);
+          channel = null;
+        }
+      },
+    );
+
+    return controller.stream;
   }
 
   Future<DominoGameState?> getGameData(String roomId) async {

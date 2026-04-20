@@ -28,7 +28,7 @@ class AudioService {
         if (_bgmPlayer.state != PlayerState.playing) {
           await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
           await _bgmPlayer.play(AssetSource('sounds/music.mp3'),
-              volume: 0.15); // مستوى الصوت هادئ
+              volume: 0.15);
         }
       } else {
         await _bgmPlayer.pause();
@@ -36,6 +36,22 @@ class AudioService {
     } catch (e) {
       print('BGM Error: $e');
     }
+  }
+
+  /// Temporarily pause BGM (e.g. inside a game room)
+  static Future<void> pauseBgm() async {
+    try { await _bgmPlayer.pause(); } catch (_) {}
+  }
+
+  /// Resume BGM if setting allows
+  static Future<void> resumeBgm() async {
+    try {
+      if (AppSettings.ttsEnabled) {
+        if (_bgmPlayer.state != PlayerState.playing) {
+          await _bgmPlayer.play(AssetSource('sounds/music.mp3'), volume: 0.15);
+        }
+      }
+    } catch (_) {}
   }
 
   static Future<void> playCorrect() async {
