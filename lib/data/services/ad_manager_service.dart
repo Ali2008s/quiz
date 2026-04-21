@@ -11,23 +11,46 @@ class AdManagerService {
   // ── getter عام يُستخدم في BannerAdWidget وغيرها ──────────────────────────
   static bool get isAdFree => _isAdFree;
 
-  // ─── معرّفات وحدات الإعلانات الإنتاجية ────────────────────────────────────
+  // ─── مجموعات معرفات وحدات الإعلانات ──────────────────────────────────────
   // بانر
-  static String get bannerAdId => 'ca-app-pub-8410384947331700/1077623036';
+  static String get bannerAdId {
+    if (Platform.isIOS) {
+      return 'ca-app-pub-3940256099942544/2934735716'; // Test ID
+    }
+    return 'ca-app-pub-8410384947331700/1077623036';
+  }
 
   // بمكافأة
-  static String get rewardedAdId => 'ca-app-pub-8410384947331700/1259562220';
+  static String get rewardedAdId {
+    if (Platform.isIOS) {
+      return 'ca-app-pub-3940256099942544/1712485313'; // Test ID
+    }
+    return 'ca-app-pub-8410384947331700/1259562220';
+  }
 
   // إعلان بيني
-  static String get interstitialAdId =>
-      'ca-app-pub-8410384947331700/1883438240';
+  static String get interstitialAdId {
+    if (Platform.isIOS) {
+      return 'ca-app-pub-3940256099942544/4411468910'; // Test ID
+    }
+    return 'ca-app-pub-8410384947331700/1883438240';
+  }
 
   // إعلان بيني مقابل مكافأة
-  static String get rewardedInterstitialAdId =>
-      'ca-app-pub-8410384947331700/7322421005';
+  static String get rewardedInterstitialAdId {
+    if (Platform.isIOS) {
+      return 'ca-app-pub-3940256099942544/6978759866'; // Test ID
+    }
+    return 'ca-app-pub-8410384947331700/7322421005';
+  }
 
   // إعلان على شاشة فتح التطبيق
-  static String get appOpenAdId => 'ca-app-pub-8410384947331700/1851648652';
+  static String get appOpenAdId {
+    if (Platform.isIOS) {
+      return 'ca-app-pub-3940256099942544/5662855259'; // Test ID
+    }
+    return 'ca-app-pub-8410384947331700/1851648652';
+  }
 
   // ─── تهيئة AdMob ──────────────────────────────────────────────────────────
   static Future<void> init() async {
