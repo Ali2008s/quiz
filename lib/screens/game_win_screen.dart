@@ -32,17 +32,17 @@ class _GameWinScreenState extends State<GameWinScreen> {
     _confettiController = ConfettiController(duration: const Duration(seconds: 5));
     _confettiController.play();
     AudioService.playWin();
-    
-    // Show Interstitial Ad when winning (frequency managed inside service or here)
-    Future.delayed(const Duration(milliseconds: 500), () {
-      AdManagerService.showInterstitial();
-    });
   }
 
   @override
   void dispose() {
     _confettiController.dispose();
     super.dispose();
+  }
+
+  // عرض إعلان بيني ثم تنفيذ الإجراء
+  void _showInterstitialThen(VoidCallback action) {
+    AdManagerService.showInterstitial(onAdClosed: action);
   }
 
   @override
@@ -210,14 +210,16 @@ class _GameWinScreenState extends State<GameWinScreen> {
                               children: [
                                 _WinButton(
                                   text: 'إعادة اللعب',
-                                  onTap: widget.onPlayAgain,
+                                  // عرض إعلان بيني قبل إعادة اللعب
+                                  onTap: () => _showInterstitialThen(widget.onPlayAgain),
                                   color: const Color(0xFFFFCC33),
                                   shadowColor: const Color(0xFFCC9900),
                                 ),
                                 const SizedBox(height: 18),
                                 _WinButton(
                                   text: 'الرجوع للقائمة',
-                                  onTap: widget.onExit,
+                                  // عرض إعلان بيني قبل العودة للقائمة
+                                  onTap: () => _showInterstitialThen(widget.onExit),
                                   color: const Color(0xFFEF5350),
                                   shadowColor: const Color(0xFFB71C1C),
                                 ),

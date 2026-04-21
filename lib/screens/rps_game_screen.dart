@@ -7,6 +7,7 @@ import '../data/services/rps_game_service.dart';
 import '../data/services/audio_service.dart';
 import '../data/services/point_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../data/services/ad_manager_service.dart';
 import 'game_win_screen.dart';
 
 class RPSGameScreen extends StatefulWidget {
@@ -241,7 +242,8 @@ class _RPSGameScreenState extends State<RPSGameScreen> {
                     child: ElevatedButton(
                         onPressed: () {
                           Navigator.pop(context);
-                          _clearGameState();
+                          AdManagerService.showInterstitial(
+                              onAdClosed: () => _clearGameState());
                         },
                         style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF1A1A2E)),
@@ -456,7 +458,7 @@ class _RPSGameScreenState extends State<RPSGameScreen> {
           GestureDetector(
               onTap: () {
                 AudioService.playClick();
-                onBack();
+                AdManagerService.showInterstitial(onAdClosed: () => onBack());
               },
               child: Container(
                   padding: const EdgeInsets.all(8),

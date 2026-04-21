@@ -6,6 +6,7 @@ import 'rps_game_screen.dart';
 import 'domino_game_screen.dart';
 import '../data/services/auth_service.dart';
 import '../data/services/audio_service.dart';
+import '../data/services/ad_manager_service.dart';
 
 class OnlineGamesScreen extends StatefulWidget {
   const OnlineGamesScreen({super.key});
@@ -42,7 +43,10 @@ class _OnlineGamesScreenState extends State<OnlineGamesScreen> {
     }
 
     if (_userName != null && _userName!.isNotEmpty) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => screen));
+      AdManagerService.showInterstitial(onAdClosed: () {
+        Navigator.push(
+            context, MaterialPageRoute(builder: (context) => screen));
+      });
     } else {
       _showRegistrationDialog(context, screen);
     }
@@ -97,8 +101,10 @@ class _OnlineGamesScreenState extends State<OnlineGamesScreen> {
                   await AuthService.setUserName(nameController.text);
                   setState(() => _userName = nameController.text);
                   Navigator.pop(context);
-                  Navigator.push(
-                      context, MaterialPageRoute(builder: (context) => screen));
+                  AdManagerService.showInterstitial(onAdClosed: () {
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (context) => screen));
+                  });
                 }
               },
               style: ElevatedButton.styleFrom(

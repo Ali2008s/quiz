@@ -5,6 +5,7 @@ import '../data/services/auth_service.dart';
 import '../data/services/domino_game_service.dart';
 import '../data/services/audio_service.dart';
 import '../data/services/point_service.dart';
+import '../data/services/ad_manager_service.dart';
 import 'game_win_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -454,8 +455,11 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
                     style: GoogleFonts.lalezar(color: Colors.white)),
                 actions: [
                   TextButton(
-                      onPressed: () =>
-                          Navigator.popUntil(context, (route) => route.isFirst),
+                      onPressed: () {
+                        AdManagerService.showInterstitial(onAdClosed: () {
+                          Navigator.popUntil(context, (route) => route.isFirst);
+                        });
+                      },
                       child: Text('تمام',
                           style: GoogleFonts.lalezar(
                               color: Colors.orange, fontSize: 18)))

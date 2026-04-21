@@ -15,23 +15,19 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
   int _retryCount = 0;
-  static const int _maxRetries = 5; // أقصى 5 محاولات
+  static const int _maxRetries = 3;
 
   @override
   void initState() {
     super.initState();
-    // نستخدم addPostFrameCallback حتى يكون الـ context جاهزاً
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _loadAd();
     });
   }
 
   Future<void> _loadAd() async {
-    // لا تحمّل إعلاناً على الويب
     if (kIsWeb) return;
-    // فقط Android و iOS
     if (!Platform.isAndroid && !Platform.isIOS) return;
-    // لا تحمّل إذا كان المستخدم ad-free
     if (AdManagerService.isAdFree) return;
 
     _bannerAd = BannerAd(
@@ -40,28 +36,18 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
       size: AdSize.banner,
       listener: BannerAdListener(
         onAdLoaded: (ad) {
-          debugPrint('✅ BannerAd loaded successfully');
-          if (mounted) {
-            setState(() => _isLoaded = true);
-          }
+          debugPrint('✅ BannerAd loaded');
+          if (mounted) setState(() => _isLoaded = true);
         },
         onAdFailedToLoad: (ad, error) {
-          debugPrint('❌ BannerAd failed [محاولة ${_retryCount + 1}/$_maxRetries]: [${error.code}] ${error.message}');
+          debugPrint('❌ BannerAd failed [${_retryCount + 1}/$_maxRetries]: ${error.message}');
           ad.dispose();
-          if (mounted) {
-            setState(() {
-              _bannerAd = null;
-              _isLoaded = false;
-            });
-          }
-          // أعد المحاولة بعد 30 ثانية بحد أقصى 5 محاولات
+          if (mounted) setState(() { _bannerAd = null; _isLoaded = false; });
           if (_retryCount < _maxRetries) {
             _retryCount++;
             Future.delayed(const Duration(seconds: 30), () {
               if (mounted) _loadAd();
             });
-          } else {
-            debugPrint('⛔ BannerAd: توقفت المحاولة بعد $_maxRetries محاولات فاشلة');
           }
         },
       ),
@@ -79,8 +65,8 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
     if (kIsWeb || !_isLoaded || _bannerAd == null) {
       return const SizedBox.shrink();
     }
-
-    return SizedBox(
+    return Container(
+      alignment: Alignment.center,
       width: _bannerAd!.size.width.toDouble(),
       height: _bannerAd!.size.height.toDouble(),
       child: AdWidget(ad: _bannerAd!),

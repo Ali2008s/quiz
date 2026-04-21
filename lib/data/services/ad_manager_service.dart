@@ -8,21 +8,26 @@ class AdManagerService {
   static bool _isAppOpenAdShowing = false;
   static AppOpenAd? _appOpenAd;
 
-  // ← getter عام يُستخدم في BannerAdWidget وغيرها
+  // ── getter عام يُستخدم في BannerAdWidget وغيرها ──────────────────────────
   static bool get isAdFree => _isAdFree;
 
-  // ─── Ad Unit IDs (نفس الـ ID لـ Android وiOS في هذا التطبيق) ───────────────
-  static String get bannerAdId => 'ca-app-pub-8410384947331700/6336321598';
+  // ─── معرّفات وحدات الإعلانات الإنتاجية ────────────────────────────────────
+  // بانر
+  static String get bannerAdId => 'ca-app-pub-8410384947331700/1077623036';
 
+  // بمكافأة
+  static String get rewardedAdId => 'ca-app-pub-8410384947331700/1259562220';
+
+  // إعلان بيني
   static String get interstitialAdId =>
-      'ca-app-pub-8410384947331700/8358803525';
+      'ca-app-pub-8410384947331700/1883438240';
 
-  static String get rewardedAdId => 'ca-app-pub-8410384947331700/1940734834';
-
+  // إعلان بيني مقابل مكافأة
   static String get rewardedInterstitialAdId =>
-      'ca-app-pub-8410384947331700/3710158257';
+      'ca-app-pub-8410384947331700/7322421005';
 
-  static String get appOpenAdId => 'ca-app-pub-8410384947331700/5653795316';
+  // إعلان على شاشة فتح التطبيق
+  static String get appOpenAdId => 'ca-app-pub-8410384947331700/1851648652';
 
   // ─── تهيئة AdMob ──────────────────────────────────────────────────────────
   static Future<void> init() async {
@@ -30,11 +35,6 @@ class AdManagerService {
     if (!Platform.isAndroid && !Platform.isIOS) return;
 
     try {
-      // ✅ إضافة المعرف كجهاز اختبار كما ظهر في سجلات الهاتف
-      RequestConfiguration configuration = RequestConfiguration(
-          testDeviceIds: ["2A98B2984FBF6609756DC70AB476AE2C"]);
-      await MobileAds.instance.updateRequestConfiguration(configuration);
-
       await MobileAds.instance.initialize();
       debugPrint('✅ MobileAds initialized');
     } catch (e) {
@@ -64,7 +64,7 @@ class AdManagerService {
     debugPrint('📋 AdFree status: $_isAdFree');
   }
 
-  // ─── App Open Ad ──────────────────────────────────────────────────────────
+  // ─── إعلان فتح التطبيق (App Open) ────────────────────────────────────────
   static void loadAppOpenAd() {
     if (kIsWeb || _isAdFree) return;
 
@@ -84,8 +84,9 @@ class AdManagerService {
   }
 
   static void showAppOpenAd() {
-    if (kIsWeb || _isAdFree || _isAppOpenAdShowing || _appOpenAd == null)
+    if (kIsWeb || _isAdFree || _isAppOpenAdShowing || _appOpenAd == null) {
       return;
+    }
 
     _appOpenAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (ad) {
@@ -109,9 +110,12 @@ class AdManagerService {
     _appOpenAd!.show();
   }
 
-  // ─── Interstitial ─────────────────────────────────────────────────────────
-  static void showInterstitial() {
-    if (kIsWeb || _isAdFree) return;
+  // ─── إعلان بيني (Interstitial) ────────────────────────────────────────────
+  static void showInterstitial({VoidCallback? onAdClosed}) {
+    if (kIsWeb || _isAdFree) {
+      onAdClosed?.call();
+      return;
+    }
 
     InterstitialAd.load(
       adUnitId: interstitialAdId,
@@ -120,24 +124,33 @@ class AdManagerService {
         onAdLoaded: (ad) {
           debugPrint('✅ Interstitial loaded, showing...');
           ad.fullScreenContentCallback = FullScreenContentCallback(
-            onAdDismissedFullScreenContent: (ad) => ad.dispose(),
+            onAdDismissedFullScreenContent: (ad) {
+              ad.dispose();
+              onAdClosed?.call();
+            },
             onAdFailedToShowFullScreenContent: (ad, error) {
               debugPrint('❌ Interstitial show failed: $error');
               ad.dispose();
+              onAdClosed?.call();
             },
           );
           ad.show();
         },
         onAdFailedToLoad: (error) {
           debugPrint('❌ Interstitial failed: ${error.code} - ${error.message}');
+          onAdClosed?.call();
         },
       ),
     );
   }
 
-  // ─── Rewarded ─────────────────────────────────────────────────────────────
+  // ─── إعلان بالمكافأة (Rewarded) ──────────────────────────────────────────
   static void showRewarded(Function(int) onReward) {
     if (kIsWeb) {
+      onReward(10);
+      return;
+    }
+    if (_isAdFree) {
       onReward(10);
       return;
     }
@@ -167,9 +180,13 @@ class AdManagerService {
     );
   }
 
-  // ─── Rewarded Interstitial ─────────────────────────────────────────────────
+  // ─── إعلان بيني مقابل مكافأة (Rewarded Interstitial) ─────────────────────
   static void showRewardedInterstitial(Function(int) onReward) {
     if (kIsWeb) {
+      onReward(15);
+      return;
+    }
+    if (_isAdFree) {
       onReward(15);
       return;
     }

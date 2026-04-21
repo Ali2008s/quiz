@@ -7,6 +7,7 @@ import '../data/services/xo_game_service.dart';
 import '../data/services/audio_service.dart';
 import '../data/services/point_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../data/services/ad_manager_service.dart';
 import 'game_win_screen.dart';
 
 class XOGameScreen extends StatefulWidget {
@@ -219,8 +220,18 @@ class _XOGameScreenState extends State<XOGameScreen> {
         title: Text('تنبيه!', textAlign: TextAlign.center, style: GoogleFonts.lalezar(color: Colors.red)),
         content: Text('تم إغلاق الغرفة من قبل المضيف أو انتهت الجلسة.', textAlign: TextAlign.center, style: GoogleFonts.lalezar()),
         actions: [
-          Center(child: ElevatedButton(onPressed: () { Navigator.pop(context); _clearGameState(); }, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A1A2E)), child: Text('تمام', style: GoogleFonts.lalezar(color: Colors.white)))),
-        ],
+        Center(
+            child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  AdManagerService.showInterstitial(
+                      onAdClosed: () => _clearGameState());
+                },
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1A1A2E)),
+                child: Text('تمام',
+                    style: GoogleFonts.lalezar(color: Colors.white)))),
+      ],
       ),
     );
   }
@@ -321,16 +332,28 @@ class _XOGameScreenState extends State<XOGameScreen> {
                 ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
-                    _resetRoom();
+                    AdManagerService.showInterstitial(onAdClosed: () {
+                      _resetRoom();
+                    });
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFA5D6A7), padding: const EdgeInsets.symmetric(horizontal: 40)),
-                  child: Text('إعادة اللعب', style: GoogleFonts.lalezar(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFA5D6A7),
+                      padding: const EdgeInsets.symmetric(horizontal: 40)),
+                  child: Text('إعادة اللعب',
+                      style: GoogleFonts.lalezar(color: Colors.white)),
                 ),
                 const SizedBox(height: 10),
                 ElevatedButton(
-                  onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF5350), padding: const EdgeInsets.symmetric(horizontal: 40)),
-                  child: Text('خروج', style: GoogleFonts.lalezar(color: Colors.white)),
+                  onPressed: () {
+                    AdManagerService.showInterstitial(onAdClosed: () {
+                      Navigator.popUntil(context, (route) => route.isFirst);
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF5350),
+                      padding: const EdgeInsets.symmetric(horizontal: 40)),
+                  child: Text('خروج',
+                      style: GoogleFonts.lalezar(color: Colors.white)),
                 ),
               ],
             ),

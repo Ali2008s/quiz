@@ -29,9 +29,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      AdManagerService.showAppOpenAd();
-    });
   }
 
   void _onItemTapped(int index) {
@@ -54,13 +51,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           children: [
             // Points Badge (Store button)
             GestureDetector(
-              onTap: () async {
+              onTap: () {
                 AudioService.playClick();
-                await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const PointStoreScreen()));
-                setState(() {}); // Refresh points when returning
+                AdManagerService.showInterstitial(onAdClosed: () async {
+                  await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const PointStoreScreen()));
+                  setState(() {}); // Refresh points when returning
+                });
               },
               child: Container(
                 padding:
@@ -98,12 +97,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             GestureDetector(
               onTap: () {
                 AudioService.playClick();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SettingsScreen(),
-                  ),
-                );
+                AdManagerService.showInterstitial(onAdClosed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const SettingsScreen(),
+                    ),
+                  );
+                });
               },
               child: Container(
                 padding: const EdgeInsets.all(10),
@@ -128,6 +129,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       body: Column(
         children: [
           Expanded(child: _screens[_selectedIndex]),
+          // ── بانر إعلاني في أسفل الشاشة ───────────────────────────────
           const BannerAdWidget(),
         ],
       ),

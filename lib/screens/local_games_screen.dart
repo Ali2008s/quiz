@@ -6,6 +6,7 @@ import 'settings_screen.dart';
 import 'name_animal_game_screen.dart';
 import 'point_store_screen.dart';
 import '../data/services/point_service.dart';
+import '../data/services/ad_manager_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class LocalGamesScreen extends StatelessWidget {
@@ -98,11 +99,13 @@ class LocalGamesScreen extends StatelessWidget {
                         title: 'ولا كلمة',
                         imagePath: 'assets/images/silent.png',
                         backgroundColor: const Color(0xFFA5D6A7),
-                        onTap: () => Navigator.push(
+                        onTap: () => AdManagerService.showInterstitial(
+                          onAdClosed: () => Navigator.push(
                             context,
                             MaterialPageRoute(
                                 builder: (context) =>
                                     const NotAWordSetupScreen())),
+                        ),
                       ),
                       CategoryCard(
                         title: 'الجاسوس',
@@ -125,11 +128,13 @@ class LocalGamesScreen extends StatelessWidget {
                         title: 'حرف واسم',
                         imagePath: 'assets/images/letter_name.png',
                         backgroundColor: const Color(0xFFA5D6A7),
-                        onTap: () => Navigator.push(
+                        onTap: () => AdManagerService.showInterstitial(
+                          onAdClosed: () => Navigator.push(
                             context,
                             MaterialPageRoute(
                                 builder: (context) =>
                                     const NameAnimalGameScreen())),
+                        ),
                       ),
                       CategoryCard(
                         title: 'كمل المثل',
@@ -152,15 +157,18 @@ class LocalGamesScreen extends StatelessWidget {
 
   void _navigateToSetup(
       BuildContext context, String title, String path, Color color) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SetupPlayersScreen(
-          title: title,
-          imagePath: path,
-          backgroundColor: color,
+    // إظهار إعلان بيني قبل الانتقال
+    AdManagerService.showInterstitial(onAdClosed: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SetupPlayersScreen(
+            title: title,
+            imagePath: path,
+            backgroundColor: color,
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 }

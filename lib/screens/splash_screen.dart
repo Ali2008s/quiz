@@ -33,6 +33,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     Future.delayed(const Duration(seconds: 4), () {
       if (mounted) {
+        // عرض إعلان فتح التطبيق قبل الانتقال
         AdManagerService.showAppOpenAd();
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const MainNavigationScreen()),

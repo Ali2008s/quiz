@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/styled_widgets.dart';
+import '../data/services/ad_manager_service.dart';
 import 'confessions_game_screen.dart';
 import 'challenge_game_screen.dart';
 import 'spy_game_screen.dart';
@@ -109,8 +110,8 @@ class _SetupPlayersScreenState extends State<SetupPlayersScreen> {
 
   void _proceedToGame() {
     List<String> names = _controllers.map((c) => c.text.trim()).toList();
-    Widget gameScreen;
-    
+    Widget? gameScreen;
+
     if (widget.title == 'إعترافات') {
       gameScreen = ConfessionsGameScreen(players: names);
     } else if (widget.title == 'تحدي الأوامر') {
@@ -136,10 +137,13 @@ class _SetupPlayersScreenState extends State<SetupPlayersScreen> {
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => gameScreen),
-    );
+    // إظهار إعلان بيني قبل بدء اللعبة
+    AdManagerService.showInterstitial(onAdClosed: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => gameScreen!),
+      );
+    });
   }
 
   @override

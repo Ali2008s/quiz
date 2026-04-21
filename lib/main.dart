@@ -12,7 +12,7 @@ void main() async {
     // 1. Load persisted user settings
     await AppSettings.load();
 
-    // 2. Initialize AdMob FIRST (قبل Supabase) - لا يحتاج Supabase
+    // 2. Initialize AdMob first (before Supabase)
     await AdManagerService.init();
 
     // 3. Initialize Supabase
@@ -23,7 +23,7 @@ void main() async {
     );
     debugPrint('Supabase initialized successfully');
 
-    // 4. بعد Supabase: تحقق من حالة Ad-Free وحمّل AppOpenAd
+    // 4. Post-init AdMob tasks (App Open Ad preload)
     await AdManagerService.postSupabaseInit();
 
   } catch (e) {
