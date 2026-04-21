@@ -116,7 +116,7 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
                     children: [
                       Expanded(
                           child: _setupCard(
-                              'سهل',
+                              'هلو مطي حمد',
                               Icons.sentiment_satisfied,
                               _difficulty == 'easy',
                               () => setModalState(() => _difficulty = 'easy'))),
