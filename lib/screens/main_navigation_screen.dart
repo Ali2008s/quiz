@@ -7,7 +7,6 @@ import 'point_store_screen.dart';
 import 'settings_screen.dart';
 import '../data/services/point_service.dart';
 import '../data/services/audio_service.dart';
-import '../data/services/ad_manager_service.dart';
 import '../widgets/banner_ad_widget.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -51,15 +50,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           children: [
             // Points Badge (Store button)
             GestureDetector(
-              onTap: () {
+              onTap: () async {
                 AudioService.playClick();
-                AdManagerService.showInterstitial(onAdClosed: () async {
-                  await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const PointStoreScreen()));
-                  setState(() {}); // Refresh points when returning
-                });
+                await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const PointStoreScreen()));
+                setState(() {}); // Refresh points when returning
               },
               child: Container(
                 padding:
@@ -97,14 +94,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             GestureDetector(
               onTap: () {
                 AudioService.playClick();
-                AdManagerService.showInterstitial(onAdClosed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const SettingsScreen(),
-                    ),
-                  );
-                });
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SettingsScreen(),
+                  ),
+                );
               },
               child: Container(
                 padding: const EdgeInsets.all(10),

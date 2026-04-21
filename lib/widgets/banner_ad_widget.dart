@@ -15,19 +15,22 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
   int _retryCount = 0;
-  static const int _maxRetries = 3;
+  static const int _maxRetries = 5;
+  // ارتفاع البانر الثابت حتى لا يقفز التخطيط
+  static const double _bannerHeight = 50.0;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadAd();
-    });
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadAd();
+      });
+    }
   }
 
   Future<void> _loadAd() async {
-    if (kIsWeb) return;
-    if (!Platform.isAndroid && !Platform.isIOS) return;
+    if (!mounted) return;
     if (AdManagerService.isAdFree) return;
 
     _bannerAd = BannerAd(
@@ -40,12 +43,16 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
           if (mounted) setState(() => _isLoaded = true);
         },
         onAdFailedToLoad: (ad, error) {
-          debugPrint('❌ BannerAd failed [${_retryCount + 1}/$_maxRetries]: ${error.message}');
+          debugPrint(
+              '❌ BannerAd failed [${_retryCount + 1}/$_maxRetries]: ${error.message}');
           ad.dispose();
-          if (mounted) setState(() { _bannerAd = null; _isLoaded = false; });
+          _bannerAd = null;
+          if (mounted) setState(() => _isLoaded = false);
           if (_retryCount < _maxRetries) {
             _retryCount++;
-            Future.delayed(const Duration(seconds: 30), () {
+            // تأخير تدريجي: 10ث، 20ث، 30ث ...
+            final delay = Duration(seconds: 10 * _retryCount);
+            Future.delayed(delay, () {
               if (mounted) _loadAd();
             });
           }
@@ -62,14 +69,17 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb || !_isLoaded || _bannerAd == null) {
-      return const SizedBox.shrink();
-    }
-    return Container(
-      alignment: Alignment.center,
-      width: _bannerAd!.size.width.toDouble(),
-      height: _bannerAd!.size.height.toDouble(),
-      child: AdWidget(ad: _bannerAd!),
+    // لا تعرض شيئاً على الويب أو إذا كان الاشتراك مفعلاً
+    if (kIsWeb) return const SizedBox.shrink();
+    if (!Platform.isAndroid && !Platform.isIOS) return const SizedBox.shrink();
+    if (AdManagerService.isAdFree) return const SizedBox.shrink();
+
+    // احجز المساحة دائماً حتى تُظهر البانر فور تحميله بدون قفز
+    return SizedBox(
+      height: _bannerHeight,
+      child: _isLoaded && _bannerAd != null
+          ? AdWidget(ad: _bannerAd!)
+          : const SizedBox.shrink(), // مساحة فارغة أثناء التحميل
     );
   }
 }

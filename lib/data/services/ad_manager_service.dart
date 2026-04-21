@@ -7,6 +7,12 @@ class AdManagerService {
   static bool _isAdFree = false;
   static bool _isAppOpenAdShowing = false;
   static AppOpenAd? _appOpenAd;
+  static InterstitialAd? _preloadedInterstitial;
+  static bool _isInterstitialLoading = false;
+
+  // ── مؤقت التكرار: يُظهر الإعلان البيني مرة كل [_freqCap] استدعاء ──────────
+  static int _interstitialCallCount = 0;
+  static const int _freqCap = 3; // كل 3 ضغطات اعرض إعلاناً واحداً
 
   // ── getter عام يُستخدم في BannerAdWidget وغيرها ──────────────────────────
   static bool get isAdFree => _isAdFree;
@@ -15,7 +21,7 @@ class AdManagerService {
   // بانر
   static String get bannerAdId {
     if (Platform.isIOS) {
-      return 'ca-app-pub-3940256099942544/2934735716'; // Test ID
+      return 'ca-app-pub-3940256099942544/2934735716'; // Test ID iOS
     }
     return 'ca-app-pub-8410384947331700/1077623036';
   }
@@ -23,7 +29,7 @@ class AdManagerService {
   // بمكافأة
   static String get rewardedAdId {
     if (Platform.isIOS) {
-      return 'ca-app-pub-3940256099942544/1712485313'; // Test ID
+      return 'ca-app-pub-3940256099942544/1712485313'; // Test ID iOS
     }
     return 'ca-app-pub-8410384947331700/1259562220';
   }
@@ -31,7 +37,7 @@ class AdManagerService {
   // إعلان بيني
   static String get interstitialAdId {
     if (Platform.isIOS) {
-      return 'ca-app-pub-3940256099942544/4411468910'; // Test ID
+      return 'ca-app-pub-3940256099942544/4411468910'; // Test ID iOS
     }
     return 'ca-app-pub-8410384947331700/1883438240';
   }
@@ -39,7 +45,7 @@ class AdManagerService {
   // إعلان بيني مقابل مكافأة
   static String get rewardedInterstitialAdId {
     if (Platform.isIOS) {
-      return 'ca-app-pub-3940256099942544/6978759866'; // Test ID
+      return 'ca-app-pub-3940256099942544/6978759866'; // Test ID iOS
     }
     return 'ca-app-pub-8410384947331700/7322421005';
   }
@@ -47,7 +53,7 @@ class AdManagerService {
   // إعلان على شاشة فتح التطبيق
   static String get appOpenAdId {
     if (Platform.isIOS) {
-      return 'ca-app-pub-3940256099942544/5662855259'; // Test ID
+      return 'ca-app-pub-3940256099942544/5662855259'; // Test ID iOS
     }
     return 'ca-app-pub-8410384947331700/1851648652';
   }
@@ -74,6 +80,7 @@ class AdManagerService {
 
     if (!_isAdFree) {
       loadAppOpenAd();
+      _preloadInterstitial(); // تحميل الإعلان البيني مسبقاً
     }
   }
 
@@ -85,6 +92,34 @@ class AdManagerService {
       _isAdFree = false;
     }
     debugPrint('📋 AdFree status: $_isAdFree');
+  }
+
+  // ─── تحميل الإعلان البيني مسبقاً (Preload) ───────────────────────────────
+  static void _preloadInterstitial() {
+    if (kIsWeb || _isAdFree || _isInterstitialLoading) return;
+    if (_preloadedInterstitial != null) return; // موجود بالفعل
+
+    _isInterstitialLoading = true;
+    debugPrint('⏳ Preloading interstitial...');
+
+    InterstitialAd.load(
+      adUnitId: interstitialAdId,
+      request: const AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (ad) {
+          _preloadedInterstitial = ad;
+          _isInterstitialLoading = false;
+          debugPrint('✅ Interstitial preloaded and ready');
+        },
+        onAdFailedToLoad: (error) {
+          _isInterstitialLoading = false;
+          _preloadedInterstitial = null;
+          debugPrint('❌ Interstitial preload failed: ${error.code} - ${error.message}');
+          // إعادة المحاولة بعد 30 ثانية
+          Future.delayed(const Duration(seconds: 30), _preloadInterstitial);
+        },
+      ),
+    );
   }
 
   // ─── إعلان فتح التطبيق (App Open) ────────────────────────────────────────
@@ -134,37 +169,49 @@ class AdManagerService {
   }
 
   // ─── إعلان بيني (Interstitial) ────────────────────────────────────────────
+  // يستخدم الإعلان المحمّل مسبقاً للعرض الفوري بدون تأخير
+  // مع Frequency Cap: لا يعرض الإعلان إلا مرة كل [_freqCap] استدعاءات
   static void showInterstitial({VoidCallback? onAdClosed}) {
     if (kIsWeb || _isAdFree) {
       onAdClosed?.call();
       return;
     }
 
-    InterstitialAd.load(
-      adUnitId: interstitialAdId,
-      request: const AdRequest(),
-      adLoadCallback: InterstitialAdLoadCallback(
-        onAdLoaded: (ad) {
-          debugPrint('✅ Interstitial loaded, showing...');
-          ad.fullScreenContentCallback = FullScreenContentCallback(
-            onAdDismissedFullScreenContent: (ad) {
-              ad.dispose();
-              onAdClosed?.call();
-            },
-            onAdFailedToShowFullScreenContent: (ad, error) {
-              debugPrint('❌ Interstitial show failed: $error');
-              ad.dispose();
-              onAdClosed?.call();
-            },
-          );
-          ad.show();
-        },
-        onAdFailedToLoad: (error) {
-          debugPrint('❌ Interstitial failed: ${error.code} - ${error.message}');
+    // احسب الاستدعاء وتحقق من الـ cap
+    _interstitialCallCount++;
+    if (_interstitialCallCount % _freqCap != 0) {
+      // ليس وقت الإعلان → انتقل مباشرة
+      debugPrint('⏭️ Interstitial skipped ($_interstitialCallCount/$_freqCap)');
+      onAdClosed?.call();
+      return;
+    }
+
+    // إذا كان الإعلان جاهزاً → عرضه فوراً
+    if (_preloadedInterstitial != null) {
+      final ad = _preloadedInterstitial!;
+      _preloadedInterstitial = null; // أفرغه لتحميل واحد جديد
+
+      ad.fullScreenContentCallback = FullScreenContentCallback(
+        onAdDismissedFullScreenContent: (ad) {
+          ad.dispose();
           onAdClosed?.call();
+          _preloadInterstitial(); // حمّل الإعلان التالي
         },
-      ),
-    );
+        onAdFailedToShowFullScreenContent: (ad, error) {
+          debugPrint('❌ Interstitial show failed: $error');
+          ad.dispose();
+          onAdClosed?.call();
+          _preloadInterstitial();
+        },
+      );
+      ad.show();
+    } else {
+      // إذا لم يكن جاهزاً → انتقل مباشرة ولا تنتظر
+      debugPrint('⚠️ No preloaded interstitial, navigating directly');
+      onAdClosed?.call();
+      // ابدأ التحميل للمرة القادمة
+      _preloadInterstitial();
+    }
   }
 
   // ─── إعلان بالمكافأة (Rewarded) ──────────────────────────────────────────
