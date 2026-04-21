@@ -97,7 +97,7 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
                     children: [
                       Expanded(
                           child: _setupCard(
-                              'لاعبين (1 ضد 1)',
+                              'لاعبين (1 ضد 1) عليي ',
                               Icons.person,
                               _playerCount == 2,
                               () => setModalState(() => _playerCount = 2))),
