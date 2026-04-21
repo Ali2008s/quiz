@@ -81,7 +81,7 @@ class _PointStoreScreenState extends State<PointStoreScreen> {
                           size: 24, color: Color(0xFF1A1A2E)),
                     ),
                   ),
-                  Text('متجر علاوي',
+                  Text('متجر مخمخة',
                       style: GoogleFonts.lalezar(
                           fontSize: 28, color: const Color(0xFF1A1A2E))),
                   const SizedBox(width: 48), // Balancing

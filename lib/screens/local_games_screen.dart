@@ -5,6 +5,7 @@ import 'not_a_word_setup_screen.dart';
 import 'settings_screen.dart';
 import 'name_animal_game_screen.dart';
 import 'point_store_screen.dart';
+import 'ludo_game_screen.dart';
 import '../data/services/point_service.dart';
 import '../data/services/ad_manager_service.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -142,6 +143,18 @@ class LocalGamesScreen extends StatelessWidget {
                         backgroundColor: const Color(0xFFCE93D8),
                         onTap: () => _navigateToSetup(context, 'كمل المثل',
                             'assets/images/complete_proverb.png', const Color(0xFFCE93D8)),
+                      ),
+                      CategoryCard(
+                        title: 'لودو',
+                        imagePath: 'assets/images/logo.png', // Using logo as placeholder since generation failed
+                        backgroundColor: const Color(0xFFD4A96A),
+                        onTap: () => AdManagerService.showInterstitial(
+                          onAdClosed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    const LudoSetupScreen())),
+                        ),
                       ),
                     ],
                   ),
