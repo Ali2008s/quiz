@@ -555,7 +555,10 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
       return _waitingScreen();
 
     return Scaffold(
+      backgroundColor: const Color(0xFF2C1810),
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -573,7 +576,10 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
 
   Widget _waitingScreen() {
     return Scaffold(
+      backgroundColor: const Color(0xFF2C1810),
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,

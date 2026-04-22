@@ -210,11 +210,16 @@ class LudoGameService {
 
   // ── الانضمام لغرفة ──
   Future<void> joinRoom(String roomId, String playerName) async {
-    final state = await _supabase
+    final response = await _supabase
         .from('ludo_games')
         .select()
         .eq('id', roomId)
-        .single();
+        .maybeSingle();
+
+    if (response == null) {
+      throw Exception('عذراً، كود الغرفة غير صحيح أو تم حذف الغرفة.');
+    }
+    final state = response;
 
     // إذا كان موجوداً بالفعل
     if (state['player1_id'] == playerName ||
