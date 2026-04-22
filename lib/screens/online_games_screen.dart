@@ -4,6 +4,7 @@ import '../widgets/category_card.dart';
 import 'xo_game_screen.dart';
 import 'rps_game_screen.dart';
 import 'domino_game_screen.dart';
+import 'ludo_online_screen.dart';
 import '../data/services/auth_service.dart';
 import '../data/services/audio_service.dart';
 import '../data/services/ad_manager_service.dart';
@@ -169,13 +170,6 @@ class _OnlineGamesScreenState extends State<OnlineGamesScreen> {
                     onTap: () => _checkRegistrationAndNavigate(
                         context, const XOGameScreen()),
                   ),
-                  // CategoryCard(
-                  //   title: 'محيبس أونلاين',
-                  //   imagePath: 'assets/images/mheibes.png',
-                  //   backgroundColor: const Color(0xFFA5D6A7),
-                  //   onTap: () => _checkRegistrationAndNavigate(
-                  //       context, const MheibesGameScreen()),
-                  // ),
                   CategoryCard(
                     title: 'حجرة ورقة مقص',
                     imagePath: 'assets/images/rps.png',
@@ -189,6 +183,13 @@ class _OnlineGamesScreenState extends State<OnlineGamesScreen> {
                     backgroundColor: const Color(0xFFB39DDB),
                     onTap: () => _checkRegistrationAndNavigate(
                         context, const DominoGameScreen()),
+                  ),
+                  CategoryCard(
+                    title: 'لودو أونلاين',
+                    imagePath: 'assets/images/logo.png', // Temporary until image generation works
+                    backgroundColor: const Color(0xFFD4A96A),
+                    onTap: () => _checkRegistrationAndNavigate(
+                        context, const LudoOnlineScreen()),
                   ),
                 ],
               ),

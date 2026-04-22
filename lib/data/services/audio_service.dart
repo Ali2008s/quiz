@@ -78,4 +78,14 @@ class AudioService {
       print('Audio Error: $e');
     }
   }
+
+  static Future<void> playSfx(String path) async {
+    try {
+      if (!AppSettings.ttsEnabled) return;
+      await _player.stop();
+      await _player.play(AssetSource(path));
+    } catch (e) {
+      print('Audio Error: $e');
+    }
+  }
 }
