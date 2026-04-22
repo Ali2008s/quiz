@@ -161,6 +161,7 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
   bool _isCreating = false;
   bool _isJoining = false;
   String? _playerName;
+  String? _playerAvatar;
   StreamSubscription<LudoOnlineState?>? _gameSub;
   Timer? _pollTimer;
   LudoOnlineState? _gameState;
@@ -198,7 +199,13 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
 
   Future<void> _initPlayer() async {
     final name = await AuthService.getUserName();
-    if (mounted) setState(() => _playerName = name);
+    final avatar = await AuthService.getUserAvatar();
+    if (mounted) {
+      setState(() {
+        _playerName = name;
+        _playerAvatar = avatar;
+      });
+    }
     AudioService.pauseBgm();
   }
 
@@ -302,8 +309,8 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           color: s
-              ? const Color(0xFF4CAF50).withOpacity(0.2)
-              : Colors.white.withOpacity(0.05),
+              ? const Color(0xFF4CAF50).withValues(alpha: 0.2)
+              : Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
               color: s ? const Color(0xFF4CAF50) : Colors.white24, width: 2),
@@ -359,13 +366,31 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
     if (_playerName == null) return;
     setState(() => _isCreating = true);
     try {
-      final id =
-          await _gameService.createRoom(_playerName!, maxPlayers: _playerCount);
+      final id = await _gameService.createRoom(_playerName!,
+          maxPlayers: _playerCount, avatar: _playerAvatar);
       _listenToGame(id);
       setState(() => _roomId = id);
     } catch (e) {
       if (mounted) setState(() => _isCreating = false);
       _showError('خطأ: $e');
+    }
+  }
+
+  void _joinRandomRoom() async {
+    if (_playerName == null || _playerAvatar == null) return;
+    setState(() => _isJoining = true);
+    try {
+      final id = await _gameService.findRandomRoom(_playerName!, _playerAvatar!);
+      if (id != null) {
+        _listenToGame(id);
+        setState(() => _roomId = id);
+      } else {
+        // إذا لم نجد غرفة، نقوم بإنشاء واحدة جديدة تلقائياً
+        _createRoom();
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isJoining = false);
+      _showError('خطأ في البحث: $e');
     }
   }
 
@@ -419,8 +444,9 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
         }
       }
     }).subscribe((status, [e]) async {
-      if (status == 'SUBSCRIBED' && _playerName != null)
+      if (status == RealtimeSubscribeStatus.subscribed && _playerName != null) {
         await _presence!.track({'u': _playerName});
+      }
     });
   }
 
@@ -539,7 +565,8 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
 
   _joinRoom() async {
     try {
-      await _gameService.joinRoom(_joinController.text.trim(), _playerName!);
+      await _gameService.joinRoom(_joinController.text.trim(), _playerName!,
+          avatar: _playerAvatar);
       _listenToGame(_joinController.text.trim());
       setState(() => _roomId = _joinController.text.trim());
     } catch (e) {
@@ -589,36 +616,80 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
         ),
         child: Center(
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            _header(
-                'بانتظار المنافسين...', Icons.people_outline, Colors.orange),
+            _header('بانتظار اللاعبين...', Icons.people_alt_rounded, Colors.orange),
+            const SizedBox(height: 10),
+            Text('كود الغرفة: $_roomId',
+                style: GoogleFonts.lalezar(fontSize: 24, color: Colors.white70)),
             const SizedBox(height: 30),
-            Container(
-                margin: const EdgeInsets.symmetric(horizontal: 24),
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(32),
-                    border: Border.all(color: Colors.white24, width: 2),
-                    boxShadow: const [
-                      BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 10,
-                          spreadRadius: 2)
-                    ]),
-                child: Column(children: [
-                  Text('كود الغرفة: ${_roomId}',
-                      style: GoogleFonts.lalezar(
-                          fontSize: 32, color: Colors.white)),
-                  const SizedBox(height: 10),
-                  Text('بانتظار اكمال العدد (${_gameState!.maxPlayers})',
-                      style: GoogleFonts.lalezar(
-                          color: Colors.white70, fontSize: 18)),
-                  const SizedBox(height: 30),
-                  const CircularProgressIndicator(color: Colors.orange)
-                ])),
-            const SizedBox(height: 40),
-            _actionBtn('إلغاء و خروج', Icons.close, Colors.redAccent,
-                () => Navigator.pop(context)),
+            // Player Slots
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Wrap(
+                spacing: 20,
+                runSpacing: 20,
+                alignment: WrapAlignment.center,
+                children: List.generate(_gameState?.maxPlayers ?? _playerCount, (index) {
+                  final pName = _gameState?.getPlayerId(index);
+                  final pAvatar = _gameState?.getPlayerAvatar(index);
+                  final isMe = pName == _playerName;
+
+                  return TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 500),
+                    builder: (context, value, child) => Transform.scale(
+                      scale: pName != null ? value : 1.0,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: pName != null
+                                    ? (isMe ? Colors.orange : Colors.green)
+                                    : Colors.white24,
+                                width: 3,
+                              ),
+                              boxShadow: pName != null
+                                  ? [
+                                      BoxShadow(
+                                          color: isMe ? Colors.orange : Colors.green,
+                                          blurRadius: 10,
+                                          spreadRadius: 2)
+                                    ]
+                                  : [],
+                            ),
+                            child: pName != null
+                                ? CircleAvatar(
+                                    backgroundImage:
+                                        pAvatar != null ? NetworkImage(pAvatar) : null,
+                                    child: pAvatar == null ? const Icon(Icons.person) : null,
+                                  )
+                                : const Icon(Icons.person_outline,
+                                    color: Colors.white24, size: 40),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(pName ?? 'بانتظار...',
+                              style: GoogleFonts.lalezar(
+                                  color: pName != null ? Colors.white : Colors.white24,
+                                  fontSize: 16)),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+            const SizedBox(height: 50),
+            if (_isCreating || _isJoining)
+              const CircularProgressIndicator(color: Colors.orange)
+            else
+              _actionBtn('إلغاء و خروج', Icons.close, Colors.redAccent, () {
+                _gameService.deleteRoom(_roomId!);
+                setState(() => _roomId = null);
+              }),
           ]),
         ),
       ),
@@ -644,7 +715,7 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
                     color: Colors.black38,
                     borderRadius: BorderRadius.circular(12),
                     border:
-                        Border.all(color: kGold.withOpacity(0.5), width: 1.5),
+                        Border.all(color: kGold.withValues(alpha: 0.5), width: 1.5),
                   ),
                   child: const Icon(Icons.arrow_back_ios_new_rounded,
                       color: kGold, size: 20),
@@ -656,8 +727,13 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
           ),
           const SizedBox(height: 40),
           _menuBox('إنشاء غرفة', 'العب مع أصدقائك ونافسهم',
-              const Color(0xFF64B5F6), Icons.public, () {
+              const Color(0xFF64B5F6), Icons.add_box_rounded, () {
             _showGameSetup();
+          }),
+          const SizedBox(height: 20),
+          _menuBox('دخول سريع', 'انضم لغرفة عشوائية والعب فوراً',
+              const Color(0xFF81C784), Icons.flash_on_rounded, () {
+            _joinRandomRoom();
           }),
           const SizedBox(height: 40),
           _joinCardUI(),
@@ -676,7 +752,7 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-            color: c.withOpacity(0.9),
+            color: c.withValues(alpha: 0.9),
             borderRadius: BorderRadius.circular(32),
             border: Border.all(color: Colors.white24, width: 2),
             boxShadow: const [
@@ -708,7 +784,7 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
                         ])),
                 Text(s,
                     style: GoogleFonts.lalezar(
-                        fontSize: 14, color: Colors.white.withOpacity(0.9)))
+                        fontSize: 14, color: Colors.white.withValues(alpha: 0.9)))
               ]))
         ]),
       ),
@@ -719,7 +795,7 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: Colors.white24, width: 2)),
       child: Row(children: [
@@ -823,7 +899,7 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
               decoration: BoxDecoration(
                 color: Colors.black38,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: kGold.withOpacity(0.5), width: 1.5),
+                border: Border.all(color: kGold.withValues(alpha: 0.5), width: 1.5),
               ),
               child: const Icon(Icons.arrow_back_ios_new_rounded,
                   color: kGold, size: 20),
@@ -852,9 +928,9 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
             decoration: BoxDecoration(
               color: Colors.black38,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: kGold.withOpacity(0.5), width: 1.5),
+              border: Border.all(color: kGold.withValues(alpha: 0.5), width: 1.5),
             ),
-            child: Text('كود: ${_roomId}',
+            child: Text('كود: $_roomId',
                 style: GoogleFonts.lalezar(color: Colors.white)),
           ),
         ],
@@ -879,16 +955,16 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
             margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: isActive ? kColors[i].withOpacity(0.9) : Colors.black38,
+              color: isActive ? kColors[i].withValues(alpha: 0.9) : Colors.black38,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isActive ? Colors.white : kColors[i].withOpacity(0.4),
+                color: isActive ? Colors.white : kColors[i].withValues(alpha: 0.4),
                 width: isActive ? 2.5 : 1.5,
               ),
               boxShadow: isActive
                   ? [
                       BoxShadow(
-                          color: kColors[i].withOpacity(0.5), blurRadius: 12)
+                          color: kColors[i].withValues(alpha: 0.5), blurRadius: 12)
                     ]
                   : [],
             ),
@@ -918,7 +994,7 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
                                 size: 10,
                                 color: isActive
                                     ? Colors.white
-                                    : kColors[i].withOpacity(0.7),
+                                    : kColors[i].withValues(alpha: 0.7),
                               )),
                     ),
                   ],
@@ -942,7 +1018,7 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                    color: kGold.withOpacity(0.3),
+                    color: kGold.withValues(alpha: 0.3),
                     blurRadius: 20,
                     spreadRadius: 3),
               ],
@@ -992,10 +1068,11 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
               p == myIndex &&
               _gameState!.diceRolled &&
               !_isRollingLocal) {
-            if (pos == 0 && _gameState!.diceValue == 6)
+            if (pos == 0 && _gameState!.diceValue == 6) {
               isMovable = true;
-            else if (pos > 0 && pos + _gameState!.diceValue <= 57)
+            } else if (pos > 0 && pos + _gameState!.diceValue <= 57) {
               isMovable = true;
+            }
           }
 
           final pieceSize = cellSize * 0.82;
@@ -1003,7 +1080,9 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
           final top = row * cellSize + (cellSize - pieceSize) / 2 + dy;
 
           pieceWidgets.add(
-            Positioned(
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeInOutCirc,
               left: left,
               top: top,
               width: pieceSize,
@@ -1011,7 +1090,6 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
               child: GestureDetector(
                 onTap: () async {
                   if (isMovable) {
-                    // optimistically update local UI might be tricky with network, just send move
                     final killed =
                         await _gameService.movePiece(_roomId!, i, _gameState!);
                     if (pos + _gameState!.diceValue == 57) {
@@ -1065,24 +1143,55 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
         final scale = isMovable ? _pulseAnim.value : 1.0;
         return Transform.scale(
           scale: scale,
-          child: Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: kColors[player],
-              border: Border.all(
-                color: isMovable ? Colors.white : Colors.black45,
-                width: isMovable ? 2.5 : 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: kColors[player].withOpacity(isMovable ? 0.8 : 0.4),
-                  blurRadius: isMovable ? 8 : 4,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Bottom Shadow/Depth
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black45,
                 ),
-              ],
-            ),
-            child: isFinished
-                ? const Icon(Icons.star, color: Colors.white, size: 10)
-                : null,
+              ),
+              // Main Body
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      kColors[player].withValues(alpha: 0.8),
+                      kColors[player],
+                      kColors[player].withValues(alpha: 0.9),
+                    ],
+                    stops: const [0.3, 0.7, 1.0],
+                  ),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kColors[player].withValues(alpha: 0.5),
+                      blurRadius: isMovable ? 10 : 4,
+                      spreadRadius: isMovable ? 2 : 0,
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Container(
+                    width: size * 0.4,
+                    height: size * 0.4,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.2),
+                    ),
+                  ),
+                ),
+              ),
+              if (isFinished)
+                const Icon(Icons.check_circle, color: Colors.white, size: 14),
+            ],
           ),
         );
       },
@@ -1100,38 +1209,84 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
     final curPlayer = _gameState!.currentPlayerIndex;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.black38,
-        border:
-            Border(top: BorderSide(color: kGold.withOpacity(0.3), width: 1)),
+        color: Colors.black45,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        border: Border(top: BorderSide(color: kGold.withOpacity(0.5), width: 2)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           // معلومات اللاعب الحالي
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: kColors[curPlayer].withOpacity(0.2),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: kColors[curPlayer], width: 2),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(kPlayerIcons[curPlayer],
-                    color: kColors[curPlayer], size: 22),
-                const SizedBox(width: 8),
-                Text(
-                    isMyTurn
-                        ? 'دورك للعب!'
-                        : 'دور ${_gameState!.getPlayerId(curPlayer) ?? kPlayerNames[curPlayer]}',
-                    style:
-                        GoogleFonts.lalezar(fontSize: 16, color: Colors.white)),
-              ],
+          Expanded(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    kColors[curPlayer].withValues(alpha: 0.8),
+                    kColors[curPlayer].withValues(alpha: 0.4),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white30, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: kColors[curPlayer].withValues(alpha: 0.3),
+                    blurRadius: 10,
+                  )
+                ],
+              ),
+              child: Row(
+                children: [
+                  Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 22,
+                        backgroundColor: Colors.white,
+                        backgroundImage: _gameState!.getPlayerAvatar(curPlayer) != null
+                            ? NetworkImage(_gameState!.getPlayerAvatar(curPlayer)!)
+                            : null,
+                        child: _gameState!.getPlayerAvatar(curPlayer) == null
+                            ? Icon(kPlayerIcons[curPlayer], color: kColors[curPlayer])
+                            : null,
+                      ),
+                      if (isMyTurn)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                                color: Colors.green, shape: BoxShape.circle),
+                            child: const Icon(Icons.check, color: Colors.white, size: 10),
+                          ),
+                        )
+                    ],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                            _gameState!.getPlayerId(curPlayer) ?? kPlayerNames[curPlayer],
+                            style: GoogleFonts.lalezar(
+                                fontSize: 18, color: Colors.white, height: 1.1)),
+                        Text(isMyTurn ? 'دورك الآن!' : 'ينتظر الدور...',
+                            style: GoogleFonts.lalezar(
+                                fontSize: 13, color: Colors.white70)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+          const SizedBox(width: 20),
 
           // زر الزهر
           GestureDetector(
@@ -1166,7 +1321,7 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
                           (_gameState!.diceValue != 0 && _gameState!.diceRolled
                                   ? kGold
                                   : Colors.black)
-                              .withOpacity(0.4),
+                              .withValues(alpha: 0.4),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -1281,7 +1436,7 @@ class _LudoBoardPainter extends CustomPainter {
     ];
 
     for (int i = 0; i < 4; i++) {
-      p.color = kColors[i].withOpacity(0.9);
+      p.color = kColors[i].withValues(alpha: 0.9);
       canvas.drawRRect(
           RRect.fromRectAndRadius(homeRects[i], const Radius.circular(8)), p);
 
@@ -1295,7 +1450,7 @@ class _LudoBoardPainter extends CustomPainter {
 
       const inset = 10.0;
       final innerRect = homeRects[i].deflate(inset);
-      p.color = Colors.white.withOpacity(0.85);
+      p.color = Colors.white.withValues(alpha: 0.85);
       canvas.drawRRect(
           RRect.fromRectAndRadius(innerRect, const Radius.circular(6)), p);
 
@@ -1303,7 +1458,7 @@ class _LudoBoardPainter extends CustomPainter {
           .map((c) => Offset(c[0] * cs + cs / 2, c[1] * cs + cs / 2))
           .toList();
       for (final center in centers) {
-        p.color = kColors[i].withOpacity(0.3);
+        p.color = kColors[i].withValues(alpha: 0.3);
         canvas.drawCircle(center, cs * 0.36, p);
         p
           ..color = kColors[i]
@@ -1321,7 +1476,7 @@ class _LudoBoardPainter extends CustomPainter {
         final cell = kSafePath[pl][s];
         final rect =
             Rect.fromLTWH(cell[0] * cs + 1, cell[1] * cs + 1, cs - 2, cs - 2);
-        p.color = kColors[pl].withOpacity(0.65);
+        p.color = kColors[pl].withValues(alpha: 0.65);
         canvas.drawRRect(
             RRect.fromRectAndRadius(rect, const Radius.circular(4)), p);
       }
@@ -1343,9 +1498,9 @@ class _LudoBoardPainter extends CustomPainter {
       }
 
       if (isStart && startPlayer != null) {
-        p.color = kColors[startPlayer].withOpacity(0.4);
+        p.color = kColors[startPlayer].withValues(alpha: 0.4);
       } else {
-        p.color = Colors.white.withOpacity(0.8);
+        p.color = Colors.white.withValues(alpha: 0.8);
       }
       canvas.drawRRect(
           RRect.fromRectAndRadius(rect, const Radius.circular(3)), p);
@@ -1375,7 +1530,7 @@ class _LudoBoardPainter extends CustomPainter {
     path.lineTo(l, b);
     path.lineTo(l, t);
     path.close();
-    p.color = kRed.withOpacity(0.85);
+    p.color = kRed.withValues(alpha: 0.85);
     canvas.drawPath(path, p);
 
     path.reset();
@@ -1383,7 +1538,7 @@ class _LudoBoardPainter extends CustomPainter {
     path.lineTo(l, t);
     path.lineTo(r, t);
     path.close();
-    p.color = kBlue.withOpacity(0.85);
+    p.color = kBlue.withValues(alpha: 0.85);
     canvas.drawPath(path, p);
 
     path.reset();
@@ -1391,7 +1546,7 @@ class _LudoBoardPainter extends CustomPainter {
     path.lineTo(r, t);
     path.lineTo(r, b);
     path.close();
-    p.color = kGreen.withOpacity(0.85);
+    p.color = kGreen.withValues(alpha: 0.85);
     canvas.drawPath(path, p);
 
     path.reset();
@@ -1399,7 +1554,7 @@ class _LudoBoardPainter extends CustomPainter {
     path.lineTo(r, b);
     path.lineTo(l, b);
     path.close();
-    p.color = kYellow.withOpacity(0.85);
+    p.color = kYellow.withValues(alpha: 0.85);
     canvas.drawPath(path, p);
 
     p
@@ -1408,7 +1563,7 @@ class _LudoBoardPainter extends CustomPainter {
       ..strokeWidth = 2;
     canvas.drawCircle(Offset(cx, cy), cs * 0.5, p);
     p.style = PaintingStyle.fill;
-    p.color = kGold.withOpacity(0.2);
+    p.color = kGold.withValues(alpha: 0.2);
     canvas.drawCircle(Offset(cx, cy), cs * 0.5, p);
   }
 

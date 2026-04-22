@@ -41,6 +41,10 @@ class LudoOnlineState {
   final List<int> player2Pieces;
   final List<int> player3Pieces;
   final List<int> player4Pieces;
+  final String? player1Avatar;
+  final String? player2Avatar;
+  final String? player3Avatar;
+  final String? player4Avatar;
   final String currentTurn; // 'player1' .. 'player4'
   final int diceValue;
   final bool diceRolled;
@@ -58,6 +62,10 @@ class LudoOnlineState {
     required this.player2Pieces,
     required this.player3Pieces,
     required this.player4Pieces,
+    this.player1Avatar,
+    this.player2Avatar,
+    this.player3Avatar,
+    this.player4Avatar,
     required this.currentTurn,
     required this.diceValue,
     required this.diceRolled,
@@ -77,6 +85,10 @@ class LudoOnlineState {
       player2Pieces: _parseIntList(json['player2_pieces'], 4),
       player3Pieces: _parseIntList(json['player3_pieces'], 4),
       player4Pieces: _parseIntList(json['player4_pieces'], 4),
+      player1Avatar: json['player1_avatar'],
+      player2Avatar: json['player2_avatar'],
+      player3Avatar: json['player3_avatar'],
+      player4Avatar: json['player4_avatar'],
       currentTurn: json['current_turn'] ?? 'player1',
       diceValue: json['dice_value'] ?? 0,
       diceRolled: json['dice_rolled'] ?? false,
@@ -111,6 +123,16 @@ class LudoOnlineState {
       case 1: return player2Id;
       case 2: return player3Id;
       case 3: return player4Id;
+      default: return null;
+    }
+  }
+
+  String? getPlayerAvatar(int playerIndex) {
+    switch (playerIndex) {
+      case 0: return player1Avatar;
+      case 1: return player2Avatar;
+      case 2: return player3Avatar;
+      case 3: return player4Avatar;
       default: return null;
     }
   }
@@ -189,11 +211,12 @@ class LudoGameService {
   }
 
   // ── إنشاء غرفة ──
-  Future<String> createRoom(String playerName, {int maxPlayers = 2}) async {
+  Future<String> createRoom(String playerName, {int maxPlayers = 2, String? avatar}) async {
     final roomId = (1000 + Random().nextInt(9000)).toString();
     await _supabase.from('ludo_games').insert({
       'id': roomId,
       'player1_id': playerName,
+      'player1_avatar': avatar,
       'player1_pieces': [0, 0, 0, 0],
       'player2_pieces': [0, 0, 0, 0],
       'player3_pieces': [0, 0, 0, 0],
@@ -209,7 +232,7 @@ class LudoGameService {
   }
 
   // ── الانضمام لغرفة ──
-  Future<void> joinRoom(String roomId, String playerName) async {
+  Future<void> joinRoom(String roomId, String playerName, {String? avatar}) async {
     final response = await _supabase
         .from('ludo_games')
         .select()
@@ -228,22 +251,63 @@ class LudoGameService {
         state['player4_id'] == playerName) return;
 
     int max = state['max_players'] ?? 2;
-    String? slot;
+    String? slotId;
+    String? slotAvatar;
     if (max >= 2 && state['player2_id'] == null) {
-      slot = 'player2_id';
+      slotId = 'player2_id';
+      slotAvatar = 'player2_avatar';
     } else if (max >= 3 && state['player3_id'] == null) {
-      slot = 'player3_id';
+      slotId = 'player3_id';
+      slotAvatar = 'player3_avatar';
     } else if (max >= 4 && state['player4_id'] == null) {
-      slot = 'player4_id';
+      slotId = 'player4_id';
+      slotAvatar = 'player4_avatar';
     }
 
-    if (slot != null) {
+    if (slotId != null) {
       await _supabase
           .from('ludo_games')
-          .update({slot: playerName}).eq('id', roomId);
+          .update({
+            slotId: playerName,
+            slotAvatar!: avatar,
+          }).eq('id', roomId);
     } else {
       throw Exception('الغرفة ممتلئة!');
     }
+  }
+
+  // ── البحث عن غرفة عشوائية ──
+  Future<String?> findRandomRoom(String playerName, String avatar) async {
+    // نحدد الغرف التي لم تمتلئ بعد وليست من إنشاء المستخدم نفسه
+    final response = await _supabase
+        .from('ludo_games')
+        .select()
+        .or('player2_id.is.null,player3_id.is.null,player4_id.is.null')
+        .neq('player1_id', playerName)
+        .order('created_at', ascending: false)
+        .limit(10);
+
+    final List<dynamic> rooms = response as List<dynamic>;
+    if (rooms.isEmpty) return null;
+
+    // تصفية الغرف التي لم تمتلئ بناءً على max_players
+    for (var room in rooms) {
+      int max = room['max_players'] ?? 2;
+      bool full = true;
+      if (max >= 2 && room['player2_id'] == null) {
+        full = false;
+      } else if (max >= 3 && room['player3_id'] == null) {
+        full = false;
+      } else if (max >= 4 && room['player4_id'] == null) {
+        full = false;
+      }
+
+      if (!full) {
+        await joinRoom(room['id'], playerName, avatar: avatar);
+        return room['id'];
+      }
+    }
+    return null;
   }
 
   // ── رمي الزهر ──

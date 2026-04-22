@@ -18,6 +18,7 @@ class OnlineGamesScreen extends StatefulWidget {
 
 class _OnlineGamesScreenState extends State<OnlineGamesScreen> {
   String? _userName;
+  String? _userAvatar;
 
   @override
   void initState() {
@@ -27,9 +28,11 @@ class _OnlineGamesScreenState extends State<OnlineGamesScreen> {
 
   Future<void> _loadUserName() async {
     final name = await AuthService.getUserName();
+    final avatar = await AuthService.getUserAvatar();
     if (mounted) {
       setState(() {
         _userName = name;
+        _userAvatar = avatar;
       });
     }
   }
@@ -55,69 +58,109 @@ class _OnlineGamesScreenState extends State<OnlineGamesScreen> {
 
   void _showRegistrationDialog(BuildContext context, Widget screen) {
     final TextEditingController nameController = TextEditingController();
+    String selectedAvatar = AuthService.availableAvatars[0];
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30),
-        ),
-        title: Text(
-          'أهلاً بك! شنو اسمك؟',
-          textAlign: TextAlign.center,
-          style:
-              GoogleFonts.lalezar(fontSize: 26, color: const Color(0xFF1A1A2E)),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.stars_rounded, size: 60, color: Color(0xFFFFCC33)),
-            const SizedBox(height: 20),
-            TextField(
-              controller: nameController,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.lalezar(fontSize: 20),
-              decoration: InputDecoration(
-                hintText: 'اكتب اسمك هنا...',
-                hintStyle: GoogleFonts.lalezar(color: Colors.grey[400]),
-                filled: true,
-                fillColor: Colors.grey[100],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide:
-                      const BorderSide(color: Color(0xFF1A1A1A), width: 2),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+          title: Text(
+            'أهلاً بك! شنو اسمك؟',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.lalezar(fontSize: 26, color: const Color(0xFF1A1A2E)),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.lalezar(fontSize: 20),
+                  decoration: InputDecoration(
+                    hintText: 'اكتب اسمك هنا...',
+                    hintStyle: GoogleFonts.lalezar(color: Colors.grey[400]),
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: const BorderSide(color: Color(0xFF1A1A1A), width: 2),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          Center(
-            child: ElevatedButton(
-              onPressed: () async {
-                if (nameController.text.isNotEmpty) {
-                  AudioService.playClick();
-                  await AuthService.setUserName(nameController.text);
-                  setState(() => _userName = nameController.text);
-                  Navigator.pop(context);
-                  AdManagerService.showInterstitial(onAdClosed: () {
-                    Navigator.push(context,
-                        MaterialPageRoute(builder: (context) => screen));
-                  });
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEF5350),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15)),
-              ),
-              child: Text('حفظ ودخول',
-                  style: GoogleFonts.lalezar(color: Colors.white)),
+                const SizedBox(height: 20),
+                Text('اختر صورتك الشخصية:',
+                    style: GoogleFonts.lalezar(fontSize: 18, color: Colors.black87)),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 100,
+                  width: 300,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: AuthService.availableAvatars.length,
+                    itemBuilder: (context, index) {
+                      final avatar = AuthService.availableAvatars[index];
+                      final isSelected = selectedAvatar == avatar;
+                      return GestureDetector(
+                        onTap: () => setModalState(() => selectedAvatar = avatar),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: isSelected ? const Color(0xFFEF5350) : Colors.transparent,
+                                width: 3),
+                          ),
+                          child: CircleAvatar(
+                            radius: 35,
+                            backgroundColor: Colors.grey[200],
+                            backgroundImage: NetworkImage(avatar),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+          actions: [
+            Center(
+              child: ElevatedButton(
+                onPressed: () async {
+                  if (nameController.text.isNotEmpty) {
+                    AudioService.playClick();
+                    await AuthService.setUserName(nameController.text);
+                    await AuthService.setUserAvatar(selectedAvatar);
+                    setState(() {
+                      _userName = nameController.text;
+                      _userAvatar = selectedAvatar;
+                    });
+                    Navigator.pop(context);
+                    AdManagerService.showInterstitial(onAdClosed: () {
+                      Navigator.push(
+                          context, MaterialPageRoute(builder: (context) => screen));
+                    });
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFEF5350),
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                ),
+                child: Text('حفظ ودخول', style: GoogleFonts.lalezar(color: Colors.white, fontSize: 18)),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
       ),
     );
   }
@@ -137,15 +180,30 @@ class _OnlineGamesScreenState extends State<OnlineGamesScreen> {
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 20),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
+                          horizontal: 20, vertical: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFA5D6A7).withOpacity(0.2),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: const Color(0xFFA5D6A7)),
+                        border: Border.all(color: const Color(0xFF1A1A1A), width: 2),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))
+                        ],
                       ),
-                      child: Text('أهلاً بك يا $_userName 👋',
-                          style: GoogleFonts.lalezar(
-                              color: const Color(0xFF2E7D32), fontSize: 18)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_userAvatar != null)
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundImage: NetworkImage(_userAvatar!),
+                              backgroundColor: Colors.grey[200],
+                            ),
+                          const SizedBox(width: 12),
+                          Text('أهلاً بك يا $_userName 👋',
+                              style: GoogleFonts.lalezar(
+                                  color: const Color(0xFF1A1A2E), fontSize: 18)),
+                        ],
+                      ),
                     ),
                   const SizedBox(height: 10),
                   ClipRRect(
