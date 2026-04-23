@@ -171,6 +171,11 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
 
   int _playerCount = 2; // 2 or 4
 
+  bool _isCountdownRunning = false;
+  int _countdownSeconds = 5;
+  Timer? _countdownTimer;
+  bool _hasStartedGame = false;
+
   late AnimationController _diceAnimCtrl;
   late AnimationController _pulseCtrl;
   late Animation<double> _pulseAnim;
@@ -225,12 +230,12 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
     _joinController.dispose();
     _diceAnimCtrl.dispose();
     _pulseCtrl.dispose();
+    _countdownTimer?.cancel();
     AudioService.resumeBgm();
     super.dispose();
   }
 
   // ─── إعدادات الغرفة ───
-  bool _isLocalMode = false; // وضع الاتصال المحلي
 
   void _showGameSetup() {
     showModalBottomSheet(
@@ -269,63 +274,7 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
                 ),
                 const SizedBox(height: 20),
 
-                // ── طريقة الاتصال
-                _sectionHeader('🌐 طريقة الاتصال'),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _setupCard2(
-                        'إنترنت',
-                        '🌐',
-                        'العب مع أي شخص',
-                        !_isLocalMode,
-                        const Color(0xFF00D4FF),
-                        () => setModalState(() => _isLocalMode = false),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _setupCard2(
-                        'محلي',
-                        '📡',
-                        'مع من بجانبك',
-                        _isLocalMode,
-                        const Color(0xFF8E54E9),
-                        () => setModalState(() => _isLocalMode = true),
-                      ),
-                    ),
-                  ],
-                ),
-
-                if (_isLocalMode) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF8E54E9).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: const Color(0xFF8E54E9).withValues(alpha: 0.4),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.wifi_tethering_rounded,
-                            color: Color(0xFF8E54E9), size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'ستُنشئ غرفة بكود قصير، شارك الكود مع صديقك المجاور.',
-                            style: GoogleFonts.lalezar(
-                                color: Colors.white60, fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 20),
+                // ── طريقة الاتصال تمت إزالتها (فقط إنترنت للـ Ludo)
 
                 // ── عدد اللاعبين
                 _sectionHeader('👥 عدد اللاعبين'),
@@ -596,68 +545,55 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
         await _presence!.track({'u': _playerName});
       }
     });
-  }
-
-  void _listenToGame(String id) {
-    _gameSub?.cancel();
-    _pollTimer?.cancel();
-    _setupPresence(id);
-
-    _pollTimer =
-        Timer.periodic(const Duration(milliseconds: 1500), (timer) async {
-      if (_roomId == null) return;
-      final state = await _gameService.getGameData(_roomId!);
-      if (state != null) {
-        bool needsUpdate = state.currentTurn != _gameState?.currentTurn ||
-            state.diceRolled != _gameState?.diceRolled ||
-            state.player2Id != _gameState?.player2Id ||
-            state.player3Id != _gameState?.player3Id ||
-            state.player4Id != _gameState?.player4Id ||
-            state.winner != _gameState?.winner ||
-            state.rankings.length != _gameState?.rankings.length;
-
-        // Also check positions changes
-        if (!needsUpdate && _gameState != null) {
-          for (int p = 0; p < state.maxPlayers; p++) {
-            for (int i = 0; i < 4; i++) {
-              if (state.getPieces(p)[i] != _gameState!.getPieces(p)[i]) {
-                needsUpdate = true;
-                break;
-              }
-            }
-          }
-        }
-
-        if (needsUpdate) {
-          if (mounted) setState(() => _gameState = state);
-          if (state.winner != null) _handleWinner(state.winner!);
-        }
-      } else {
-        if (mounted && _roomId != null && _gameState != null) {
-          _pollTimer?.cancel();
-          _showRoomDeletedDialog();
-        }
-      }
-    });
 
     _gameSub = _gameService.gameStream(id).listen((state) {
       if (!mounted) return;
       if (state == null) {
-        if (_roomId != null && _gameState != null) {
-          _pollTimer?.cancel();
-          _showRoomDeletedDialog();
+        if (_roomId != null) {
+          _gameSub?.cancel();
+          setState(() {
+            _roomId = null;
+            _gameState = null;
+          });
         }
         return;
       }
+
       setState(() {
         _gameState = state;
         _isCreating = false;
         _isJoining = false;
       });
-      if (state.winner != null) _handleWinner(state.winner!);
-    }, onError: (e) {
-      debugPrint('Ludo Game Stream Error: $e');
+
+      if (state.isRoomFull && !_isCountdownRunning && !_hasStartedGame) {
+        setState(() {
+          _isCountdownRunning = true;
+          _countdownSeconds = 5;
+        });
+        _countdownTimer?.cancel();
+        _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+          if (_countdownSeconds > 1) {
+            if (mounted) setState(() => _countdownSeconds--);
+          } else {
+            t.cancel();
+            if (mounted)
+              setState(() {
+                _hasStartedGame = true;
+                _isCountdownRunning = false;
+              });
+          }
+        });
+      }
+
+      if (state.winner != null) {
+        // ... game over logic ...
+      }
     });
+  }
+
+  void _listenToGame(String id) {
+    _gameSub?.cancel();
+    _setupPresence(id);
   }
 
   void _handleWinner(String winner) {
@@ -726,8 +662,11 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (_roomId != null && _gameState != null && !_gameState!.isRoomFull)
+    if (_roomId != null &&
+        _gameState != null &&
+        (!_gameState!.isRoomFull || _isCountdownRunning)) {
       return _waitingScreen();
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFF2C1810),
@@ -756,229 +695,131 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
         .length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0520),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.center,
-            radius: 1.3,
-            colors: [
-              Color(0xFF2D1B69),
-              Color(0xFF0D0520),
-              Color(0xFF050010),
-            ],
-          ),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: Color(0xFF1A1A2E)),
+          onPressed: () {
+            AudioService.playClick();
+            _gameService.deleteRoom(_roomId!);
+            setState(() => _roomId = null);
+          },
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
+        title: Text(
+          'غرفة الانتظار',
+          style:
+              GoogleFonts.lalezar(color: const Color(0xFF1A1A2E), fontSize: 24),
+        ),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
 
-              // ── الرأس
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: [
-                    Text(
-                      'بانتظار اللاعبين...',
-                      style: GoogleFonts.lalezar(
-                        fontSize: 30,
-                        color: Colors.white,
-                        shadows: [
-                          Shadow(
-                            color: kGold.withValues(alpha: 0.8),
-                            blurRadius: 20,
-                          ),
-                        ],
-                      ),
+            // ── الرأس
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  Text(
+                    _isCountdownRunning
+                        ? 'اللعبة تبدأ بعد $_countdownSeconds...'
+                        : 'بانتظار انضمام لاعبين...',
+                    style: GoogleFonts.lalezar(
+                      fontSize: 26,
+                      color: const Color(0xFF1A1A2E),
                     ),
-                    const SizedBox(height: 6),
-                    // عداد اللاعبين
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            width: 1.5),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.people_alt_rounded,
-                              color: kGold, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            '$joined / $maxP لاعب انضم',
-                            style:
-                                GoogleFonts.lalezar(color: kGold, fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // ── كود الغرفة
-              GestureDetector(
-                onTap: () {
-                  AudioService.playClick();
-                  // Copy room code
-                },
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        kGold.withValues(alpha: 0.25),
-                        kGold.withValues(alpha: 0.08)
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(22),
-                    border: Border.all(color: kGold, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: kGold.withValues(alpha: 0.3),
-                        blurRadius: 20,
-                        spreadRadius: 1,
-                      ),
-                    ],
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.gamepad_rounded, color: kGold, size: 24),
-                      const SizedBox(width: 10),
-                      Column(
-                        children: [
-                          Text(
-                            'كود الغرفة',
-                            style: GoogleFonts.lalezar(
-                                color: Colors.white60, fontSize: 13),
-                          ),
-                          Text(
-                            _roomId ?? '----',
-                            style: GoogleFonts.lalezar(
-                              fontSize: 36,
-                              color: kGold,
-                              letterSpacing: 6,
-                              shadows: [
-                                Shadow(
-                                    color: kGold.withValues(alpha: 0.8),
-                                    blurRadius: 12),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 10),
-                      const Icon(Icons.copy_rounded, color: kGold, size: 24),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 40),
-
-              // ── صور اللاعبين بشكل دائري جذاب
-              Expanded(
-                child: Center(
-                  child: _buildPlayerSlotGrid(maxP),
-                ),
-              ),
-
-              // ── شريط تقدم الانتظار
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '$joined لاعب متصل',
-                          style: GoogleFonts.lalezar(
-                              color: Colors.white60, fontSize: 13),
-                        ),
-                        Text(
-                          '$maxP مطلوبون',
-                          style: GoogleFonts.lalezar(
-                              color: Colors.white60, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(
-                        value: joined / maxP,
-                        backgroundColor: Colors.white.withValues(alpha: 0.1),
-                        valueColor: const AlwaysStoppedAnimation<Color>(kGold),
-                        minHeight: 8,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // ── زر الإلغاء
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                child: GestureDetector(
-                  onTap: () {
-                    AudioService.playClick();
-                    _gameService.deleteRoom(_roomId!);
-                    setState(() => _roomId = null);
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  const SizedBox(height: 6),
+                  // عداد اللاعبين
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.redAccent.withValues(alpha: 0.3),
-                          Colors.red.withValues(alpha: 0.1),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(22),
+                      color: const Color(0xFF64B5F6).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: Colors.redAccent.withValues(alpha: 0.5),
-                        width: 1.5,
-                      ),
+                          color: const Color(0xFF64B5F6), width: 1.5),
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.close_rounded,
-                            color: Colors.redAccent, size: 24),
-                        const SizedBox(width: 10),
+                        const Icon(Icons.people_alt_rounded,
+                            color: Color(0xFF1565C0), size: 20),
+                        const SizedBox(width: 8),
                         Text(
-                          'إلغاء والخروج',
+                          '$joined / $maxP لاعب انضم',
                           style: GoogleFonts.lalezar(
-                            color: Colors.redAccent,
-                            fontSize: 20,
-                          ),
+                              color: const Color(0xFF1565C0), fontSize: 16),
                         ),
                       ],
                     ),
                   ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── كود الغرفة
+            GestureDetector(
+              onTap: () {
+                AudioService.playClick();
+                // Copy room code
+              },
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: const Color(0xFF1A1A1A), width: 2),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.gamepad_rounded,
+                        color: Color(0xFF1A1A2E), size: 24),
+                    const SizedBox(width: 10),
+                    Column(
+                      children: [
+                        Text(
+                          'كود الغرفة',
+                          style: GoogleFonts.lalezar(
+                              color: Colors.grey.shade700, fontSize: 13),
+                        ),
+                        Text(
+                          _roomId ?? '----',
+                          style: GoogleFonts.lalezar(
+                            fontSize: 36,
+                            color: const Color(0xFF1A1A2E),
+                            letterSpacing: 6,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 10),
+                    const Icon(Icons.copy_rounded,
+                        color: Color(0xFF1A1A2E), size: 24),
+                  ],
                 ),
               ),
+            ),
 
-              const SizedBox(height: 10),
-            ],
-          ),
+            const SizedBox(height: 40),
+
+            // ── صور اللاعبين بشكل دائري جذاب
+            Expanded(
+              child: Center(
+                child: _buildPlayerSlotGrid(maxP),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1057,24 +898,17 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
                       ],
                     )
                   : null,
-              color: hasPlayer ? null : Colors.white.withValues(alpha: 0.05),
+              color: hasPlayer ? null : Colors.grey.shade100,
               border: Border.all(
-                color: hasPlayer ? color : Colors.white.withValues(alpha: 0.15),
+                color: hasPlayer ? color : const Color(0xFF1A1A1A),
                 width: hasPlayer ? 3 : 2,
               ),
               boxShadow: hasPlayer
                   ? [
                       BoxShadow(
-                        color: color.withValues(alpha: 0.5),
-                        blurRadius: 20,
+                        color: color.withOpacity(0.3),
+                        blurRadius: 10,
                         spreadRadius: 2,
-                      ),
-                      BoxShadow(
-                        color: isMe
-                            ? kGold.withValues(alpha: 0.4)
-                            : color.withValues(alpha: 0.2),
-                        blurRadius: 30,
-                        spreadRadius: 5,
                       ),
                     ]
                   : [],

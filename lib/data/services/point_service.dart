@@ -19,7 +19,7 @@ class PointService {
     int current = await getPoints();
     final newTotal = current + points;
     await prefs.setInt(_pointsKey, newTotal);
-    
+
     // Sync with Supabase for leaderboard
     final name = await AuthService.getUserName();
     if (name != null) {
@@ -44,7 +44,11 @@ class PointService {
     try {
       // Fetch current wins or increment in one go if possible
       // Profiles table should have 'wins' column
-      final data = await _supabase.from('profiles').select('wins').eq('name', name).maybeSingle();
+      final data = await _supabase
+          .from('profiles')
+          .select('wins')
+          .eq('name', name)
+          .maybeSingle();
       int currentWins = data?['wins'] ?? 0;
       await _supabase.from('profiles').upsert({
         'name': name,
@@ -60,10 +64,10 @@ class PointService {
     if (current >= amount) {
       final newTotal = current - amount;
       await prefs.setInt(_pointsKey, newTotal);
-      
+
       final name = await AuthService.getUserName();
       if (name != null) _syncToSupabase(name, newTotal);
-      
+
       return true;
     }
     return false;
@@ -74,10 +78,10 @@ class PointService {
     final prefs = await SharedPreferences.getInstance();
     DateTime now = DateTime.now();
     DateTime currentAdFree = await getAdFreeUntil();
-    
+
     DateTime baseTime = currentAdFree.isAfter(now) ? currentAdFree : now;
     DateTime newDate = baseTime.add(Duration(minutes: minutes));
-    
+
     await prefs.setString(_adFreeUntilKey, newDate.toIso8601String());
   }
 
@@ -100,7 +104,8 @@ class PointService {
           .from('profiles')
           .select('name, points, wins')
           .order('points', ascending: false)
-          .limit(20);
+          .limit(20)
+          .timeout(const Duration(seconds: 5));
       return List<Map<String, dynamic>>.from(data);
     } catch (e) {
       return [];

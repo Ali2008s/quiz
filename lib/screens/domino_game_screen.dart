@@ -481,32 +481,19 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
       return _waitingScreen();
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
-          ),
-        ),
-        child: SafeArea(
-            child: (_roomId == null || _gameState == null)
-                ? _buildMenu()
-                : _buildGame()),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: (_roomId == null || _gameState == null)
+            ? _buildMenu()
+            : _buildGame(),
       ),
     );
   }
 
   Widget _waitingScreen() {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
-          ),
-        ),
+      backgroundColor: Colors.white,
+      body: SafeArea(
         child: Center(
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             _header(
@@ -516,12 +503,13 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
                 margin: const EdgeInsets.symmetric(horizontal: 24),
                 padding: const EdgeInsets.all(32),
                 decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(32),
-                    border: Border.all(color: Colors.white24, width: 2),
+                    border:
+                        Border.all(color: const Color(0xFF1A1A1A), width: 2),
                     boxShadow: const [
                       BoxShadow(
-                          color: Colors.black26,
+                          color: Colors.black12,
                           blurRadius: 10,
                           spreadRadius: 2)
                     ]),
@@ -529,12 +517,12 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
                   if (!_vsAI) ...[
                     Text('كود الغرفة: ${_roomId}',
                         style: GoogleFonts.lalezar(
-                            fontSize: 32, color: Colors.white)),
+                            fontSize: 32, color: const Color(0xFF1A1A2E))),
                     const SizedBox(height: 10),
                   ],
                   Text('بانتظار اكمال العدد (${_gameState!.maxPlayers})',
                       style: GoogleFonts.lalezar(
-                          color: Colors.white70, fontSize: 18)),
+                          color: Colors.grey.shade700, fontSize: 18)),
                   const SizedBox(height: 30),
                   const CircularProgressIndicator(color: Colors.orange)
                 ])),
@@ -553,7 +541,8 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(children: [
           const SizedBox(height: 30),
-          _header('لعبة الدومينو', Icons.extension_rounded, Colors.white),
+          _header('لعبة الدومينو', Icons.extension_rounded,
+              const Color(0xFF1A1A2E)),
           const SizedBox(height: 40),
           _menuBox('اللعب الجماعي', 'أدخل الغرفة ونافس أساطير الدومينو',
               const Color(0xFF64B5F6), Icons.public, () {
@@ -586,12 +575,12 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-            color: c.withOpacity(0.9),
+            color: c,
             borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.white24, width: 2),
+            border: Border.all(color: Colors.grey.shade300, width: 2),
             boxShadow: const [
               BoxShadow(
-                  color: Colors.black45, offset: Offset(0, 8), blurRadius: 10)
+                  color: Colors.black12, offset: Offset(0, 8), blurRadius: 10)
             ]),
         child: Row(children: [
           Container(
@@ -930,7 +919,7 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
     } else {
       if (canPlay) items.add(_buildTarget(false));
       for (var p in _gameState!.board) {
-        items.add(_AnimatedPiece(piece: p));
+        items.add(_AnimatedPiece(piece: p, vertical: p.side1 == p.side2));
       }
       if (canPlay) items.add(_buildTarget(true));
     }
