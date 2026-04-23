@@ -230,6 +230,8 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
   }
 
   // ─── إعدادات الغرفة ───
+  bool _isLocalMode = false; // وضع الاتصال المحلي
+
   void _showGameSetup() {
     showModalBottomSheet(
       context: context,
@@ -239,52 +241,197 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
         builder: (context, setModalState) => Container(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           decoration: const BoxDecoration(
-              color: Color(0xFF1E2A38),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
-              boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 20)]),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF1A0A2E), Color(0xFF0D0520)],
+            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+            boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 20)],
+          ),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Handle bar
                 Container(
-                    width: 50,
-                    height: 6,
-                    decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(10))),
+                  width: 50,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
                 const SizedBox(height: 20),
-                Text('إعدادات اللعب الجماعي',
-                    style:
-                        GoogleFonts.lalezar(fontSize: 32, color: Colors.white)),
-                const SizedBox(height: 15),
-                _sectionHeader('عدد اللاعبين'),
+                Text(
+                  'إعدادات الغرفة',
+                  style: GoogleFonts.lalezar(fontSize: 30, color: Colors.white),
+                ),
+                const SizedBox(height: 20),
+
+                // ── طريقة الاتصال
+                _sectionHeader('🌐 طريقة الاتصال'),
                 Row(
                   children: [
                     Expanded(
-                        child: _setupCard(
-                            'لاعبين',
-                            Icons.person,
-                            _playerCount == 2,
-                            () => setModalState(() => _playerCount = 2))),
+                      child: _setupCard2(
+                        'إنترنت',
+                        '🌐',
+                        'العب مع أي شخص',
+                        !_isLocalMode,
+                        const Color(0xFF00D4FF),
+                        () => setModalState(() => _isLocalMode = false),
+                      ),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
-                        child: _setupCard(
-                            '4 لاعبين',
-                            Icons.group,
-                            _playerCount == 4,
-                            () => setModalState(() => _playerCount = 4))),
+                      child: _setupCard2(
+                        'محلي',
+                        '📡',
+                        'مع من بجانبك',
+                        _isLocalMode,
+                        const Color(0xFF8E54E9),
+                        () => setModalState(() => _isLocalMode = true),
+                      ),
+                    ),
+                  ],
+                ),
+
+                if (_isLocalMode) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8E54E9).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: const Color(0xFF8E54E9).withValues(alpha: 0.4),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.wifi_tethering_rounded,
+                            color: Color(0xFF8E54E9), size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'ستُنشئ غرفة بكود قصير، شارك الكود مع صديقك المجاور.',
+                            style: GoogleFonts.lalezar(
+                                color: Colors.white60, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 20),
+
+                // ── عدد اللاعبين
+                _sectionHeader('👥 عدد اللاعبين'),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _setupCard(
+                        '2 لاعبين',
+                        Icons.person,
+                        _playerCount == 2,
+                        () => setModalState(() => _playerCount = 2),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _setupCard(
+                        '4 لاعبين',
+                        Icons.group,
+                        _playerCount == 4,
+                        () => setModalState(() => _playerCount = 4),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 32),
-                _actionBtn('ابدأ اللعبة الآن', Icons.play_arrow_rounded,
-                    const Color(0xFF4CAF50), () {
-                  AudioService.playClick();
-                  Navigator.pop(context);
-                  _createRoom();
-                }),
+                _actionBtn(
+                  'ابدأ اللعبة الآن 🚀',
+                  Icons.play_arrow_rounded,
+                  const Color(0xFF4CAF50),
+                  () {
+                    AudioService.playClick();
+                    setState(() {/* _isLocalMode already set */});
+                    Navigator.pop(context);
+                    _createRoom();
+                  },
+                ),
+                const SizedBox(height: 20),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _setupCard2(
+    String title,
+    String emoji,
+    String subtitle,
+    bool isSelected,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        AudioService.playClick();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+        decoration: BoxDecoration(
+          gradient: isSelected
+              ? LinearGradient(
+                  colors: [
+                    color.withValues(alpha: 0.3),
+                    color.withValues(alpha: 0.1)
+                  ],
+                )
+              : null,
+          color: isSelected ? null : Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? color : Colors.white24,
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.4),
+                    blurRadius: 12,
+                    spreadRadius: 1,
+                  )
+                ]
+              : [],
+        ),
+        child: Column(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 28)),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: GoogleFonts.lalezar(
+                color: isSelected ? Colors.white : Colors.white70,
+                fontSize: 16,
+              ),
+            ),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.lalezar(
+                color: isSelected ? color : Colors.white38,
+                fontSize: 11,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -380,7 +527,8 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
     if (_playerName == null || _playerAvatar == null) return;
     setState(() => _isJoining = true);
     try {
-      final id = await _gameService.findRandomRoom(_playerName!, _playerAvatar!);
+      final id =
+          await _gameService.findRandomRoom(_playerName!, _playerAvatar!);
       if (id != null) {
         _listenToGame(id);
         setState(() => _roomId = id);
@@ -602,96 +750,426 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
   }
 
   Widget _waitingScreen() {
+    final maxP = _gameState?.maxPlayers ?? _playerCount;
+    final joined = List.generate(maxP, (i) => _gameState?.getPlayerId(i))
+        .where((p) => p != null)
+        .length;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF2C1810),
+      backgroundColor: const Color(0xFF0D0520),
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF2C1810), Color(0xFF4A2C1A), Color(0xFF6B3F20)],
+          gradient: RadialGradient(
+            center: Alignment.center,
+            radius: 1.3,
+            colors: [
+              Color(0xFF2D1B69),
+              Color(0xFF0D0520),
+              Color(0xFF050010),
+            ],
           ),
         ),
-        child: Center(
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            _header('بانتظار اللاعبين...', Icons.people_alt_rounded, Colors.orange),
-            const SizedBox(height: 10),
-            Text('كود الغرفة: $_roomId',
-                style: GoogleFonts.lalezar(fontSize: 24, color: Colors.white70)),
-            const SizedBox(height: 30),
-            // Player Slots
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Wrap(
-                spacing: 20,
-                runSpacing: 20,
-                alignment: WrapAlignment.center,
-                children: List.generate(_gameState?.maxPlayers ?? _playerCount, (index) {
-                  final pName = _gameState?.getPlayerId(index);
-                  final pAvatar = _gameState?.getPlayerAvatar(index);
-                  final isMe = pName == _playerName;
+        child: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
 
-                  return TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    duration: const Duration(milliseconds: 500),
-                    builder: (context, value, child) => Transform.scale(
-                      scale: pName != null ? value : 1.0,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: pName != null
-                                    ? (isMe ? Colors.orange : Colors.green)
-                                    : Colors.white24,
-                                width: 3,
-                              ),
-                              boxShadow: pName != null
-                                  ? [
-                                      BoxShadow(
-                                          color: isMe ? Colors.orange : Colors.green,
-                                          blurRadius: 10,
-                                          spreadRadius: 2)
-                                    ]
-                                  : [],
-                            ),
-                            child: pName != null
-                                ? CircleAvatar(
-                                    backgroundImage:
-                                        pAvatar != null ? NetworkImage(pAvatar) : null,
-                                    child: pAvatar == null ? const Icon(Icons.person) : null,
-                                  )
-                                : const Icon(Icons.person_outline,
-                                    color: Colors.white24, size: 40),
+              // ── الرأس
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  children: [
+                    Text(
+                      'بانتظار اللاعبين...',
+                      style: GoogleFonts.lalezar(
+                        fontSize: 30,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: kGold.withValues(alpha: 0.8),
+                            blurRadius: 20,
                           ),
-                          const SizedBox(height: 8),
-                          Text(pName ?? 'بانتظار...',
-                              style: GoogleFonts.lalezar(
-                                  color: pName != null ? Colors.white : Colors.white24,
-                                  fontSize: 16)),
                         ],
                       ),
                     ),
-                  );
-                }),
+                    const SizedBox(height: 6),
+                    // عداد اللاعبين
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            width: 1.5),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.people_alt_rounded,
+                              color: kGold, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            '$joined / $maxP لاعب انضم',
+                            style:
+                                GoogleFonts.lalezar(color: kGold, fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 50),
-            if (_isCreating || _isJoining)
-              const CircularProgressIndicator(color: Colors.orange)
-            else
-              _actionBtn('إلغاء و خروج', Icons.close, Colors.redAccent, () {
-                _gameService.deleteRoom(_roomId!);
-                setState(() => _roomId = null);
-              }),
-          ]),
+
+              const SizedBox(height: 16),
+
+              // ── كود الغرفة
+              GestureDetector(
+                onTap: () {
+                  AudioService.playClick();
+                  // Copy room code
+                },
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        kGold.withValues(alpha: 0.25),
+                        kGold.withValues(alpha: 0.08)
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: kGold, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: kGold.withValues(alpha: 0.3),
+                        blurRadius: 20,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.gamepad_rounded, color: kGold, size: 24),
+                      const SizedBox(width: 10),
+                      Column(
+                        children: [
+                          Text(
+                            'كود الغرفة',
+                            style: GoogleFonts.lalezar(
+                                color: Colors.white60, fontSize: 13),
+                          ),
+                          Text(
+                            _roomId ?? '----',
+                            style: GoogleFonts.lalezar(
+                              fontSize: 36,
+                              color: kGold,
+                              letterSpacing: 6,
+                              shadows: [
+                                Shadow(
+                                    color: kGold.withValues(alpha: 0.8),
+                                    blurRadius: 12),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 10),
+                      const Icon(Icons.copy_rounded, color: kGold, size: 24),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+              // ── صور اللاعبين بشكل دائري جذاب
+              Expanded(
+                child: Center(
+                  child: _buildPlayerSlotGrid(maxP),
+                ),
+              ),
+
+              // ── شريط تقدم الانتظار
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '$joined لاعب متصل',
+                          style: GoogleFonts.lalezar(
+                              color: Colors.white60, fontSize: 13),
+                        ),
+                        Text(
+                          '$maxP مطلوبون',
+                          style: GoogleFonts.lalezar(
+                              color: Colors.white60, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        value: joined / maxP,
+                        backgroundColor: Colors.white.withValues(alpha: 0.1),
+                        valueColor: const AlwaysStoppedAnimation<Color>(kGold),
+                        minHeight: 8,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── زر الإلغاء
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: GestureDetector(
+                  onTap: () {
+                    AudioService.playClick();
+                    _gameService.deleteRoom(_roomId!);
+                    setState(() => _roomId = null);
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.redAccent.withValues(alpha: 0.3),
+                          Colors.red.withValues(alpha: 0.1),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                        color: Colors.redAccent.withValues(alpha: 0.5),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.close_rounded,
+                            color: Colors.redAccent, size: 24),
+                        const SizedBox(width: 10),
+                        Text(
+                          'إلغاء والخروج',
+                          style: GoogleFonts.lalezar(
+                            color: Colors.redAccent,
+                            fontSize: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPlayerSlotGrid(int maxP) {
+    final slots = List.generate(maxP, (index) {
+      final pName = _gameState?.getPlayerId(index);
+      final pAvatar = _gameState?.getPlayerAvatar(index);
+      final isMe = pName == _playerName;
+      final playerColor = kColors[index % kColors.length];
+
+      return _buildPlayerSlot(
+        playerName: pName,
+        playerAvatar: pAvatar,
+        isMe: isMe,
+        color: playerColor,
+        index: index,
+        label: kPlayerNames[index % kPlayerNames.length],
+      );
+    });
+
+    if (maxP == 2) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: slots,
+      );
+    } else {
+      return GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        padding: const EdgeInsets.symmetric(horizontal: 30),
+        mainAxisSpacing: 20,
+        crossAxisSpacing: 20,
+        children: slots,
+      );
+    }
+  }
+
+  Widget _buildPlayerSlot({
+    required String? playerName,
+    required String? playerAvatar,
+    required bool isMe,
+    required Color color,
+    required int index,
+    required String label,
+  }) {
+    final hasPlayer = playerName != null;
+
+    return TweenAnimationBuilder<double>(
+      key: ValueKey('slot_$index${hasPlayer ? '_filled' : ''}'),
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 400 + index * 100),
+      curve: Curves.elasticOut,
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: hasPlayer ? value : 1.0,
+          child: child,
+        );
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Avatar container
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 400),
+            width: 90,
+            height: 90,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: hasPlayer
+                  ? RadialGradient(
+                      colors: [
+                        color.withValues(alpha: 0.4),
+                        color.withValues(alpha: 0.1),
+                      ],
+                    )
+                  : null,
+              color: hasPlayer ? null : Colors.white.withValues(alpha: 0.05),
+              border: Border.all(
+                color: hasPlayer ? color : Colors.white.withValues(alpha: 0.15),
+                width: hasPlayer ? 3 : 2,
+              ),
+              boxShadow: hasPlayer
+                  ? [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.5),
+                        blurRadius: 20,
+                        spreadRadius: 2,
+                      ),
+                      BoxShadow(
+                        color: isMe
+                            ? kGold.withValues(alpha: 0.4)
+                            : color.withValues(alpha: 0.2),
+                        blurRadius: 30,
+                        spreadRadius: 5,
+                      ),
+                    ]
+                  : [],
+            ),
+            child: hasPlayer
+                ? ClipOval(
+                    child: playerAvatar != null
+                        ? Image.network(
+                            playerAvatar,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Text(
+                                playerName[0].toUpperCase(),
+                                style: GoogleFonts.lalezar(
+                                  color: Colors.white,
+                                  fontSize: 36,
+                                ),
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              playerName[0].toUpperCase(),
+                              style: GoogleFonts.lalezar(
+                                color: Colors.white,
+                                fontSize: 36,
+                              ),
+                            ),
+                          ),
+                  )
+                : const Icon(Icons.person_outline_rounded,
+                    color: Colors.white24, size: 40),
+          ),
+
+          const SizedBox(height: 10),
+
+          // اسم اللاعب
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: Column(
+              key: ValueKey(playerName ?? 'empty_$index'),
+              children: [
+                if (hasPlayer && isMe)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: kGold.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'أنت 👑',
+                      style: GoogleFonts.lalezar(color: kGold, fontSize: 12),
+                    ),
+                  ),
+                Text(
+                  hasPlayer ? playerName : 'بانتظار...',
+                  style: GoogleFonts.lalezar(
+                    color: hasPlayer ? Colors.white : Colors.white30,
+                    fontSize: 15,
+                  ),
+                ),
+                if (hasPlayer)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: color,
+                              blurRadius: 6,
+                            )
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        label,
+                        style: GoogleFonts.lalezar(
+                          color: color,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -714,8 +1192,8 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
                   decoration: BoxDecoration(
                     color: Colors.black38,
                     borderRadius: BorderRadius.circular(12),
-                    border:
-                        Border.all(color: kGold.withValues(alpha: 0.5), width: 1.5),
+                    border: Border.all(
+                        color: kGold.withValues(alpha: 0.5), width: 1.5),
                   ),
                   child: const Icon(Icons.arrow_back_ios_new_rounded,
                       color: kGold, size: 20),
@@ -784,7 +1262,8 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
                         ])),
                 Text(s,
                     style: GoogleFonts.lalezar(
-                        fontSize: 14, color: Colors.white.withValues(alpha: 0.9)))
+                        fontSize: 14,
+                        color: Colors.white.withValues(alpha: 0.9)))
               ]))
         ]),
       ),
@@ -899,7 +1378,8 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
               decoration: BoxDecoration(
                 color: Colors.black38,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: kGold.withValues(alpha: 0.5), width: 1.5),
+                border:
+                    Border.all(color: kGold.withValues(alpha: 0.5), width: 1.5),
               ),
               child: const Icon(Icons.arrow_back_ios_new_rounded,
                   color: kGold, size: 20),
@@ -928,7 +1408,8 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
             decoration: BoxDecoration(
               color: Colors.black38,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: kGold.withValues(alpha: 0.5), width: 1.5),
+              border:
+                  Border.all(color: kGold.withValues(alpha: 0.5), width: 1.5),
             ),
             child: Text('كود: $_roomId',
                 style: GoogleFonts.lalezar(color: Colors.white)),
@@ -955,16 +1436,19 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
             margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              color: isActive ? kColors[i].withValues(alpha: 0.9) : Colors.black38,
+              color:
+                  isActive ? kColors[i].withValues(alpha: 0.9) : Colors.black38,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isActive ? Colors.white : kColors[i].withValues(alpha: 0.4),
+                color:
+                    isActive ? Colors.white : kColors[i].withValues(alpha: 0.4),
                 width: isActive ? 2.5 : 1.5,
               ),
               boxShadow: isActive
                   ? [
                       BoxShadow(
-                          color: kColors[i].withValues(alpha: 0.5), blurRadius: 12)
+                          color: kColors[i].withValues(alpha: 0.5),
+                          blurRadius: 12)
                     ]
                   : [],
             ),
@@ -1213,7 +1697,8 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
       decoration: BoxDecoration(
         color: Colors.black45,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-        border: Border(top: BorderSide(color: kGold.withOpacity(0.5), width: 2)),
+        border:
+            Border(top: BorderSide(color: kGold.withOpacity(0.5), width: 2)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -1246,11 +1731,14 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
                       CircleAvatar(
                         radius: 22,
                         backgroundColor: Colors.white,
-                        backgroundImage: _gameState!.getPlayerAvatar(curPlayer) != null
-                            ? NetworkImage(_gameState!.getPlayerAvatar(curPlayer)!)
-                            : null,
+                        backgroundImage:
+                            _gameState!.getPlayerAvatar(curPlayer) != null
+                                ? NetworkImage(
+                                    _gameState!.getPlayerAvatar(curPlayer)!)
+                                : null,
                         child: _gameState!.getPlayerAvatar(curPlayer) == null
-                            ? Icon(kPlayerIcons[curPlayer], color: kColors[curPlayer])
+                            ? Icon(kPlayerIcons[curPlayer],
+                                color: kColors[curPlayer])
                             : null,
                       ),
                       if (isMyTurn)
@@ -1261,7 +1749,8 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
                             padding: const EdgeInsets.all(4),
                             decoration: const BoxDecoration(
                                 color: Colors.green, shape: BoxShape.circle),
-                            child: const Icon(Icons.check, color: Colors.white, size: 10),
+                            child: const Icon(Icons.check,
+                                color: Colors.white, size: 10),
                           ),
                         )
                     ],
@@ -1273,9 +1762,12 @@ class _LudoOnlineScreenState extends State<LudoOnlineScreen>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                            _gameState!.getPlayerId(curPlayer) ?? kPlayerNames[curPlayer],
+                            _gameState!.getPlayerId(curPlayer) ??
+                                kPlayerNames[curPlayer],
                             style: GoogleFonts.lalezar(
-                                fontSize: 18, color: Colors.white, height: 1.1)),
+                                fontSize: 18,
+                                color: Colors.white,
+                                height: 1.1)),
                         Text(isMyTurn ? 'دورك الآن!' : 'ينتظر الدور...',
                             style: GoogleFonts.lalezar(
                                 fontSize: 13, color: Colors.white70)),

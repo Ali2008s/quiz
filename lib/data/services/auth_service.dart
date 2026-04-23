@@ -11,16 +11,34 @@ class AuthService {
   static String? _cachedAvatar;
 
   static const List<String> availableAvatars = [
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Felix',
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Aneka',
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Buddy',
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Coco',
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Daisy',
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Eden',
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Fluffy',
-    'https://api.dicebear.com/7.x/avataaars/png?seed=George',
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Honey',
-    'https://api.dicebear.com/7.x/avataaars/png?seed=Izzy',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Felix&backgroundColor=b6e3f4',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Aneka&backgroundColor=ffdfbf',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Buddy&backgroundColor=c0aede',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Coco&backgroundColor=ffd5dc',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Daisy&backgroundColor=b6e3f4',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Eden&backgroundColor=a8f0c6',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Fluffy&backgroundColor=ffd5dc',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=George&backgroundColor=ffdfbf',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Honey&backgroundColor=c0aede',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Izzy&backgroundColor=b6e3f4',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Jack&backgroundColor=a8f0c6',
+    'https://api.dicebear.com/7.x/avataaars/png?seed=Kai&backgroundColor=ffd5dc',
+  ];
+
+  // شخصيات إضافية بأسلوب مختلف (Pixel Art & Fun)
+  static const List<String> extraAvatars = [
+    'https://api.dicebear.com/7.x/bottts/png?seed=Robot1&backgroundColor=b6e3f4',
+    'https://api.dicebear.com/7.x/bottts/png?seed=Robot2&backgroundColor=ffdfbf',
+    'https://api.dicebear.com/7.x/bottts/png?seed=Cyborg&backgroundColor=c0aede',
+    'https://api.dicebear.com/7.x/bottts/png?seed=Mech&backgroundColor=ffd5dc',
+    'https://api.dicebear.com/7.x/fun-emoji/png?seed=Dragon',
+    'https://api.dicebear.com/7.x/fun-emoji/png?seed=Tiger',
+    'https://api.dicebear.com/7.x/fun-emoji/png?seed=Lion',
+    'https://api.dicebear.com/7.x/fun-emoji/png?seed=Wolf',
+    'https://api.dicebear.com/7.x/pixel-art/png?seed=Ninja&backgroundColor=292929',
+    'https://api.dicebear.com/7.x/pixel-art/png?seed=Knight&backgroundColor=1a1a2e',
+    'https://api.dicebear.com/7.x/pixel-art/png?seed=Wizard&backgroundColor=2d1b69',
+    'https://api.dicebear.com/7.x/pixel-art/png?seed=Archer&backgroundColor=0a3d62',
   ];
 
   static Future<String?> getUserName() async {

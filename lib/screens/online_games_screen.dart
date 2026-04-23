@@ -5,8 +5,8 @@ import 'xo_game_screen.dart';
 import 'rps_game_screen.dart';
 import 'domino_game_screen.dart';
 import 'ludo_online_screen.dart';
+import 'player_profile_setup_screen.dart';
 import '../data/services/auth_service.dart';
-import '../data/services/audio_service.dart';
 import '../data/services/ad_manager_service.dart';
 
 class OnlineGamesScreen extends StatefulWidget {
@@ -57,109 +57,13 @@ class _OnlineGamesScreenState extends State<OnlineGamesScreen> {
   }
 
   void _showRegistrationDialog(BuildContext context, Widget screen) {
-    final TextEditingController nameController = TextEditingController();
-    String selectedAvatar = AuthService.availableAvatars[0];
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
-          ),
-          title: Text(
-            'أهلاً بك! شنو اسمك؟',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.lalezar(fontSize: 26, color: const Color(0xFF1A1A2E)),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.lalezar(fontSize: 20),
-                  decoration: InputDecoration(
-                    hintText: 'اكتب اسمك هنا...',
-                    hintStyle: GoogleFonts.lalezar(color: Colors.grey[400]),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      borderSide: const BorderSide(color: Color(0xFF1A1A1A), width: 2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text('اختر صورتك الشخصية:',
-                    style: GoogleFonts.lalezar(fontSize: 18, color: Colors.black87)),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 100,
-                  width: 300,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: AuthService.availableAvatars.length,
-                    itemBuilder: (context, index) {
-                      final avatar = AuthService.availableAvatars[index];
-                      final isSelected = selectedAvatar == avatar;
-                      return GestureDetector(
-                        onTap: () => setModalState(() => selectedAvatar = avatar),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          margin: const EdgeInsets.symmetric(horizontal: 8),
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                                color: isSelected ? const Color(0xFFEF5350) : Colors.transparent,
-                                width: 3),
-                          ),
-                          child: CircleAvatar(
-                            radius: 35,
-                            backgroundColor: Colors.grey[200],
-                            backgroundImage: NetworkImage(avatar),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            Center(
-              child: ElevatedButton(
-                onPressed: () async {
-                  if (nameController.text.isNotEmpty) {
-                    AudioService.playClick();
-                    await AuthService.setUserName(nameController.text);
-                    await AuthService.setUserAvatar(selectedAvatar);
-                    setState(() {
-                      _userName = nameController.text;
-                      _userAvatar = selectedAvatar;
-                    });
-                    Navigator.pop(context);
-                    AdManagerService.showInterstitial(onAdClosed: () {
-                      Navigator.push(
-                          context, MaterialPageRoute(builder: (context) => screen));
-                    });
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFEF5350),
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                ),
-                child: Text('حفظ ودخول', style: GoogleFonts.lalezar(color: Colors.white, fontSize: 18)),
-              ),
-            ),
-            const SizedBox(height: 10),
-          ],
+    // استخدام شاشة الملف الشخصي الجديدة الجميلة
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PlayerProfileSetupScreen(
+          nextScreen: screen,
+          title: 'أهلاً بك في عالم الألعاب! 🎮',
         ),
       ),
     );
@@ -184,9 +88,13 @@ class _OnlineGamesScreenState extends State<OnlineGamesScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: const Color(0xFF1A1A1A), width: 2),
+                        border: Border.all(
+                            color: const Color(0xFF1A1A1A), width: 2),
                         boxShadow: const [
-                          BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))
+                          BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 10,
+                              offset: Offset(0, 4))
                         ],
                       ),
                       child: Row(
@@ -201,7 +109,8 @@ class _OnlineGamesScreenState extends State<OnlineGamesScreen> {
                           const SizedBox(width: 12),
                           Text('أهلاً بك يا $_userName 👋',
                               style: GoogleFonts.lalezar(
-                                  color: const Color(0xFF1A1A2E), fontSize: 18)),
+                                  color: const Color(0xFF1A1A2E),
+                                  fontSize: 18)),
                         ],
                       ),
                     ),
@@ -244,7 +153,8 @@ class _OnlineGamesScreenState extends State<OnlineGamesScreen> {
                   ),
                   CategoryCard(
                     title: 'لودو أونلاين',
-                    imagePath: 'assets/images/logo.png', // Temporary until image generation works
+                    imagePath:
+                        'assets/images/logo.png', // Temporary until image generation works
                     backgroundColor: const Color(0xFFD4A96A),
                     onTap: () => _checkRegistrationAndNavigate(
                         context, const LudoOnlineScreen()),
