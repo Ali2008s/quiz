@@ -84,6 +84,146 @@ class _XOGameScreenState extends State<XOGameScreen> {
     super.dispose();
   }
 
+  void _showCreateRoomSheet() {
+    bool sheetBtMode = _isBluetoothMode;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF1A1A2E), Color(0xFF0D0A2E)],
+            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(36)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 50,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text('إنشاء غرفة جديدة',
+                  style:
+                      GoogleFonts.lalezar(fontSize: 28, color: Colors.white)),
+              const SizedBox(height: 20),
+              // اختيار طريقة الاتصال
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setSheet(() => sheetBtMode = false),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: !sheetBtMode
+                                ? const Color(0xFF64B5F6)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Text('🌐 إنترنت',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.lalezar(
+                                color: !sheetBtMode
+                                    ? Colors.white
+                                    : Colors.white54,
+                                fontSize: 17,
+                              )),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setSheet(() => sheetBtMode = true),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: sheetBtMode
+                                ? const Color(0xFFAB47BC)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Text('📡 بلوتوث',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.lalezar(
+                                color:
+                                    sheetBtMode ? Colors.white : Colors.white54,
+                                fontSize: 17,
+                              )),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: () {
+                  AudioService.playClick();
+                  setState(() => _isBluetoothMode = sheetBtMode);
+                  Navigator.pop(ctx);
+                  _createRoom();
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  decoration: BoxDecoration(
+                    color: sheetBtMode
+                        ? const Color(0xFFAB47BC)
+                        : const Color(0xFF64B5F6),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: const [
+                      BoxShadow(
+                          color: Colors.black38,
+                          offset: Offset(0, 4),
+                          blurRadius: 8)
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        sheetBtMode
+                            ? Icons.bluetooth_rounded
+                            : Icons.wifi_rounded,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                      const SizedBox(width: 12),
+                      Text('إنشاء الغرفة الآن',
+                          style: GoogleFonts.lalezar(
+                              fontSize: 22, color: Colors.white)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _createRoom() async {
     if (_playerName == null) return;
     setState(() => _isCreating = true);
@@ -544,95 +684,22 @@ class _XOGameScreenState extends State<XOGameScreen> {
                     style:
                         GoogleFonts.lalezar(color: const Color(0xFF2E7D32)))),
           const SizedBox(height: 30),
-
-          // Network / Bluetooth Toggle
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF1A1A1A), width: 2),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        AudioService.playClick();
-                        setState(() => _isBluetoothMode = false);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: !_isBluetoothMode
-                              ? const Color(0xFF64B5F6)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: Text(
-                          '🌐 إنترنت',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.lalezar(
-                            color:
-                                !_isBluetoothMode ? Colors.white : Colors.grey,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        AudioService.playClick();
-                        setState(() => _isBluetoothMode = true);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: _isBluetoothMode
-                              ? const Color(0xFFAB47BC)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: Text(
-                          '📡 بلوتوث (بدون نت)',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.lalezar(
-                            color:
-                                _isBluetoothMode ? Colors.white : Colors.grey,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 30),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Column(
               children: [
-                if (!_isBluetoothMode) ...[
-                  _actionButton(
-                      title: 'دخول تلقائي (عشوائي)',
-                      icon: Icons.bolt_rounded,
-                      color: const Color(0xFFEF5350),
-                      onTap: _autoJoin,
-                      isLoading: _isAutoJoining),
-                  const SizedBox(height: 15),
-                ],
+                _actionButton(
+                    title: 'دخول تلقائي (عشوائي)',
+                    icon: Icons.bolt_rounded,
+                    color: const Color(0xFFEF5350),
+                    onTap: _autoJoin,
+                    isLoading: _isAutoJoining),
+                const SizedBox(height: 15),
                 _actionButton(
                     title: 'إنشاء غرفة جديدة',
                     icon: Icons.add_rounded,
                     color: const Color(0xFF64B5F6),
-                    onTap: _createRoom,
+                    onTap: _showCreateRoomSheet,
                     isLoading: _isCreating),
                 const SizedBox(height: 15),
                 _actionButton(
@@ -643,18 +710,13 @@ class _XOGameScreenState extends State<XOGameScreen> {
                       showDialog(
                           context: context,
                           builder: (context) => AlertDialog(
-                                title: Text(
-                                    _isBluetoothMode
-                                        ? 'ادخل اسم الخصم للبحث عنه'
-                                        : 'ادخل كود الغرفة',
+                                title: Text('ادخل كود الغرفة',
                                     style: GoogleFonts.lalezar()),
                                 content: TextField(
                                     controller: _joinController,
                                     textAlign: TextAlign.center,
                                     decoration: InputDecoration(
-                                        hintText: _isBluetoothMode
-                                            ? 'اسم صديقك'
-                                            : 'مثلاً: 1234',
+                                        hintText: 'مثلاً: 1234',
                                         border: OutlineInputBorder(
                                             borderRadius:
                                                 BorderRadius.circular(15)))),

@@ -96,17 +96,35 @@ class BluetoothXOService {
   Stream<LocalXOState?> get gameStream => _stateController.stream;
 
   Future<bool> requestPermissions() async {
-    Map<Permission, PermissionStatus> statuses = await [
+    // طلب الأذونات المطلوبة
+    final List<Permission> permissions = [
       Permission.bluetooth,
       Permission.bluetoothAdvertise,
       Permission.bluetoothConnect,
       Permission.bluetoothScan,
-      Permission.location,
+      Permission.locationWhenInUse,
       Permission.nearbyWifiDevices,
-    ].request();
+    ];
 
-    return statuses.values
-        .every((status) => status.isGranted || status.isLimited);
+    // تحقق من الأذونات المرفوضة بشكل دائم أولاً
+    for (final perm in permissions) {
+      final status = await perm.status;
+      if (status.isPermanentlyDenied) {
+        // فتح إعدادات التطبيق للسماح للمستخدم بالتغيير
+        await openAppSettings();
+        await Future.delayed(const Duration(seconds: 2));
+        break;
+      }
+    }
+
+    // طلب جميع الأذونات
+    Map<Permission, PermissionStatus> statuses = await permissions.request();
+
+    // التحقق من أن كل الأذونات ممنوحة
+    bool allGranted =
+        statuses.values.every((status) => status.isGranted || status.isLimited);
+
+    return allGranted;
   }
 
   Future<void> createLocalRoom(String playerName) async {

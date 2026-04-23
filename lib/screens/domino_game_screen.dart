@@ -481,55 +481,88 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
       return _waitingScreen();
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: (_roomId == null || _gameState == null)
-            ? _buildMenu()
-            : _buildGame(),
+      backgroundColor: const Color(0xFF1A1A1A),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF1A1008),
+              Color(0xFF2E1B0E),
+              Color(0xFF1C1C1C),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: (_roomId == null || _gameState == null)
+              ? _buildMenu()
+              : _buildGame(),
+        ),
       ),
     );
   }
 
   Widget _waitingScreen() {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            _header(
-                'بانتظار المنافسين...', Icons.people_outline, Colors.orange),
-            const SizedBox(height: 30),
-            Container(
-                margin: const EdgeInsets.symmetric(horizontal: 24),
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(32),
-                    border:
-                        Border.all(color: const Color(0xFF1A1A1A), width: 2),
-                    boxShadow: const [
-                      BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 10,
-                          spreadRadius: 2)
-                    ]),
-                child: Column(children: [
-                  if (!_vsAI) ...[
-                    Text('كود الغرفة: ${_roomId}',
+      backgroundColor: const Color(0xFF1A1008),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF1A1008), Color(0xFF2E1B0E), Color(0xFF1C1C1C)],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child:
+                Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              _header('بانتظار المنافسين...', Icons.people_outline,
+                  const Color(0xFFFFD700)),
+              const SizedBox(height: 30),
+              Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.all(32),
+                  decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(32),
+                      border: Border.all(
+                          color: const Color(0xFFFFD700).withOpacity(0.4),
+                          width: 2),
+                      boxShadow: const [
+                        BoxShadow(
+                            color: Colors.black45,
+                            blurRadius: 15,
+                            spreadRadius: 2)
+                      ]),
+                  child: Column(children: [
+                    if (!_vsAI) ...[
+                      Text('كود الغرفة',
+                          style: GoogleFonts.lalezar(
+                              fontSize: 14, color: Colors.white54)),
+                      Text('${_roomId}',
+                          style: GoogleFonts.lalezar(
+                              fontSize: 36,
+                              color: const Color(0xFFFFD700),
+                              letterSpacing: 4)),
+                      const SizedBox(height: 10),
+                    ],
+                    Text('بانتظار اكمال العدد (${_gameState!.maxPlayers})',
                         style: GoogleFonts.lalezar(
-                            fontSize: 32, color: const Color(0xFF1A1A2E))),
-                    const SizedBox(height: 10),
-                  ],
-                  Text('بانتظار اكمال العدد (${_gameState!.maxPlayers})',
-                      style: GoogleFonts.lalezar(
-                          color: Colors.grey.shade700, fontSize: 18)),
-                  const SizedBox(height: 30),
-                  const CircularProgressIndicator(color: Colors.orange)
-                ])),
-            const SizedBox(height: 40),
-            _actionBtn('إلغاء و خروج', Icons.close, Colors.redAccent,
-                () => Navigator.pop(context)),
-          ]),
+                            color: Colors.white70, fontSize: 18)),
+                    const SizedBox(height: 30),
+                    const CircularProgressIndicator(color: Color(0xFFFFD700))
+                  ])),
+              const SizedBox(height: 40),
+              _actionBtn('إلغاء و خروج', Icons.close, Colors.redAccent,
+                  () => Navigator.pop(context)),
+            ]),
+          ),
         ),
       ),
     );
@@ -541,17 +574,43 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(children: [
           const SizedBox(height: 30),
-          _header('لعبة الدومينو', Icons.extension_rounded,
-              const Color(0xFF1A1A2E)),
+          // زر الرجوع + العنوان
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  AudioService.playClick();
+                  Navigator.pop(context);
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: const Color(0xFFFFD700).withOpacity(0.4),
+                        width: 1.5),
+                  ),
+                  child: const Icon(Icons.arrow_back_ios_new_rounded,
+                      color: Color(0xFFFFD700), size: 20),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _header('لعبة الدومينو', Icons.extension_rounded,
+                    const Color(0xFFFFD700)),
+              ),
+            ],
+          ),
           const SizedBox(height: 40),
           _menuBox('اللعب الجماعي', 'أدخل الغرفة ونافس أساطير الدومينو',
-              const Color(0xFF64B5F6), Icons.public, () {
+              const Color(0xFF1565C0), Icons.public, () {
             setState(() => _vsAI = false);
             _showGameSetup();
           }),
           const SizedBox(height: 20),
           _menuBox('اللعب الفردي', 'تحدَّ الذكاء الاصطناعي وحدد الصعوبة',
-              const Color(0xFFFF8A65), Icons.android_rounded, () {
+              const Color(0xFF6A1B9A), Icons.android_rounded, () {
             setState(() {
               _vsAI = true;
               _playerCount = 2;
@@ -575,12 +634,12 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-            color: c,
+            color: c.withOpacity(0.9),
             borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: Colors.grey.shade300, width: 2),
+            border: Border.all(color: Colors.white24, width: 2),
             boxShadow: const [
               BoxShadow(
-                  color: Colors.black12, offset: Offset(0, 8), blurRadius: 10)
+                  color: Colors.black45, offset: Offset(0, 8), blurRadius: 10)
             ]),
         child: Row(children: [
           Container(
@@ -618,31 +677,58 @@ class _DominoGameScreenState extends State<DominoGameScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.white24, width: 2)),
-      child: Row(children: [
-        Expanded(
-            child: TextField(
-                controller: _joinController,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.lalezar(fontSize: 20, color: Colors.white),
-                decoration: const InputDecoration(
-                    hintText: 'كود الغرفة',
-                    hintStyle: TextStyle(color: Colors.white54),
-                    border: InputBorder.none))),
-        ElevatedButton(
-            onPressed: _joinRoom,
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                elevation: 5,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15))),
-            child:
-                Text('دخول', style: GoogleFonts.lalezar(color: Colors.white))),
-      ]),
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(
+              color: const Color(0xFFFFD700).withOpacity(0.2), width: 2),
+          boxShadow: const [
+            BoxShadow(
+                color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))
+          ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8, bottom: 12),
+            child: Text('انضمام بكود الغرفة',
+                style:
+                    GoogleFonts.lalezar(fontSize: 18, color: Colors.white70)),
+          ),
+          Row(children: [
+            Expanded(
+                child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                  color: Colors.black26,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white10)),
+              child: TextField(
+                  controller: _joinController,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.lalezar(
+                      fontSize: 22,
+                      color: const Color(0xFFFFD700),
+                      letterSpacing: 2),
+                  decoration: const InputDecoration(
+                      hintText: '--- ---',
+                      hintStyle: TextStyle(color: Colors.white24),
+                      border: InputBorder.none)),
+            )),
+            const SizedBox(width: 12),
+            ElevatedButton(
+                onPressed: _joinRoom,
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFD700),
+                    foregroundColor: Colors.black,
+                    elevation: 5,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16))),
+                child: const Icon(Icons.arrow_forward_rounded, size: 28)),
+          ]),
+        ],
+      ),
     );
   }
 
